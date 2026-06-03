@@ -211,24 +211,49 @@ Fichiers déjà fournis : `Procfile`, `.python-version`.
 
 ### Option C — Vercel (Hobby gratuit, serverless)
 
-Fichiers déjà fournis : `vercel.json` + `api/index.py` (adaptateur ASGI ;
-`includeFiles` embarque les templates et fichiers statiques dans la fonction).
+> ⚠️ Vercel exécute l'application comme une **fonction serverless** (et non un
+> serveur permanent). Pour une app à rendu serveur, **Render/Railway sont plus
+> simples**. Si vous tenez à Vercel, la configuration ci-dessous est requise.
+
+Fichiers fournis : `vercel.json` + `api/index.py` (adaptateur ASGI). Le point
+clé : `includeFiles: "app/**"` **empaquette les templates HTML et les fichiers
+statiques** dans la fonction — sans cela, Vercel n'embarque que les `.py` et
+l'app renvoie un **500** (`TemplateNotFound` / dossier statique absent).
 
 ```bash
 npm i -g vercel
 vercel login
-vercel            # déploiement de prévisualisation
-vercel --prod     # déploiement en production
+vercel --prod
 ```
-Ajoutez ensuite les variables d'environnement dans **Project → Settings →
-Environment Variables**, puis redéployez (`vercel --prod`).
-*(Note : en serverless, le premier appel après inactivité subit un démarrage à
-froid de quelques secondes.)*
+Puis **Project → Settings → Environment Variables** : ajoutez `MONGO_URI`,
+`DB_NAME`, `SECRET_KEY`, `DEMO_PASSWORD`, et **redéployez** (`vercel --prod`).
+
+### Diagnostiquer un 500 sur Vercel
+
+La cause exacte est **toujours** dans la trace Python. Pour la lire :
+
+- **Dashboard** → votre projet → l'onglet **Logs** (Runtime Logs) → rechargez la
+  page en erreur → lisez la trace, **ou**
+- **CLI** : `vercel logs <url-du-deploiement>`
+
+L'application journalise au démarrage une ligne `[startup] static_dir=… exists=…
+templates_dir=… exists=… MONGO_URI=set/MISSING`. Interprétation :
+
+| Trace / symptôme dans les logs | Cause | Correctif |
+|--------------------------------|-------|-----------|
+| `exists=False` pour static/templates, `TemplateNotFound` | Fichiers non empaquetés | Vérifier `vercel.json` (`includeFiles`), redéployer |
+| `MONGO_URI=MISSING` | Variable d'env absente | Ajouter les variables puis redéployer |
+| `ServerSelectionTimeoutError` / timeout ~8 s | Atlas bloque l'IP | Atlas → Network Access → `0.0.0.0/0` |
+| `pymongo … Authentication failed` | Mauvais identifiants | Corriger `MONGO_URI` |
+
+> Le **poids** n'est pas en cause : les dépendances font bien moins que la limite
+> de 250 Mo de Vercel. Un 500 immédiat = crash d'exécution, pas un dépassement de
+> taille (qui échouerait, lui, au *build*).
 
 ### Sonde de santé
 
-Un endpoint `GET /healthz` renvoie `{"status":"ok"}` pour les vérifications de
-disponibilité des plateformes.
+Un endpoint `GET /healthz` renvoie `{"status":"ok"}` (indépendant de la base de
+données) pour vérifier que la fonction démarre, isolément des problèmes Mongo.
 
 ---
 
