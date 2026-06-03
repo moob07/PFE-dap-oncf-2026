@@ -162,4 +162,84 @@ avec décrément de stock correct, scénario d'escalade rupture, contrôles RBAC
 
 ---
 
+## Déploiement gratuit
+
+L'application est **stateless** (sessions par cookie signé, aucune écriture
+disque) et lit toute sa configuration depuis des variables d'environnement :
+elle se déploie donc sans modification sur la plupart des plateformes.
+
+### Étapes communes (à faire une seule fois)
+
+1. **Pousser le code sur GitHub** (sans le `.env`, déjà ignoré par Git) :
+   ```bash
+   git init && git add . && git commit -m "DAP EMIZ ONCF"
+   git branch -M main
+   git remote add origin https://github.com/<vous>/dap.git
+   git push -u origin main
+   ```
+2. **Ouvrir l'accès réseau MongoDB Atlas** — les hébergeurs gratuits utilisent
+   des IP dynamiques. Dans Atlas → **Network Access → Add IP Address →
+   Allow access from anywhere (`0.0.0.0/0`)**. *(Sans cette étape, l'app
+   déployée ne pourra pas se connecter à la base.)*
+3. La base est déjà peuplée. Sinon, lancez le seed **en local** vers le même
+   cluster : `python -m app.seed`.
+
+> Variables d'environnement à définir sur la plateforme (voir `.env.example`) :
+> `MONGO_URI`, `DB_NAME`, `SECRET_KEY` (générez : `python -c "import secrets;print(secrets.token_hex(32))"`),
+> `DEMO_PASSWORD`.
+
+### Option A — Render (100 % gratuit, recommandé) ⭐
+
+Render offre un *Web Service* gratuit (l'app s'endort après 15 min d'inactivité
+puis redémarre en ~30 s). Fichiers déjà fournis : `Procfile`, `runtime.txt`.
+
+1. https://render.com → **New → Web Service** → connectez votre dépôt GitHub.
+2. Environment **Python 3**, Build Command `pip install -r requirements.txt`,
+   Start Command `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
+3. Plan **Free**. Ajoutez les variables d'environnement (Settings → Environment).
+4. **Create Web Service** → l'URL publique est fournie après le build.
+
+### Option B — Railway (crédit d'essai gratuit)
+
+Railway accorde un crédit d'essai (~5 $) suffisant pour une démo de PFE.
+Fichiers déjà fournis : `Procfile`, `.python-version`.
+
+1. https://railway.app → **New Project → Deploy from GitHub repo**.
+2. Railway détecte Python et le `Procfile` automatiquement.
+3. Onglet **Variables** → ajoutez les variables d'environnement.
+4. **Settings → Networking → Generate Domain** pour obtenir l'URL publique.
+
+### Option C — Vercel (Hobby gratuit, serverless)
+
+Fichiers déjà fournis : `vercel.json` + `api/index.py` (adaptateur ASGI ;
+`includeFiles` embarque les templates et fichiers statiques dans la fonction).
+
+```bash
+npm i -g vercel
+vercel login
+vercel            # déploiement de prévisualisation
+vercel --prod     # déploiement en production
+```
+Ajoutez ensuite les variables d'environnement dans **Project → Settings →
+Environment Variables**, puis redéployez (`vercel --prod`).
+*(Note : en serverless, le premier appel après inactivité subit un démarrage à
+froid de quelques secondes.)*
+
+### Sonde de santé
+
+Un endpoint `GET /healthz` renvoie `{"status":"ok"}` pour les vérifications de
+disponibilité des plateformes.
+
+---
+
+## Sécurité (production)
+
+- `SECRET_KEY` doit être une valeur **aléatoire et secrète** en production
+  (ne pas réutiliser la valeur de démo).
+- Le `.env` n'est **jamais** committé (présent dans `.gitignore`).
+- Si une chaîne de connexion Atlas a été partagée en clair, **changez le mot de
+  passe** du compte de base de données depuis la console Atlas.
+
+---
+
 © **Mohamed Mobine El Hajji — 2026**

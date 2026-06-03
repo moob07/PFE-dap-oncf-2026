@@ -13,8 +13,17 @@ from . import config
 @lru_cache(maxsize=1)
 def get_client() -> MongoClient:
     if not config.MONGO_URI:
-        raise RuntimeError("MONGO_URI non défini dans .env")
-    return MongoClient(config.MONGO_URI, serverSelectionTimeoutMS=8000, tz_aware=False)
+        raise RuntimeError("MONGO_URI non défini (variable d'environnement)")
+    # maxPoolSize réduit : adapté aux clusters Atlas M0 (gratuit) et aux
+    # environnements serverless (Vercel) où chaque instance ouvre un pool.
+    return MongoClient(
+        config.MONGO_URI,
+        serverSelectionTimeoutMS=8000,
+        connectTimeoutMS=8000,
+        maxPoolSize=10,
+        retryWrites=True,
+        tz_aware=False,
+    )
 
 
 def get_db() -> Database:

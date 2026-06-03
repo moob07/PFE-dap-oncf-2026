@@ -48,3 +48,17 @@ async def _http_exc(request: Request, exc: StarletteHTTPException):
         return render(request, "errors/404.html", status_code=404)
     return HTMLResponse(f"<h1>{exc.status_code}</h1><p>{exc.detail}</p>",
                         status_code=exc.status_code)
+
+
+@app.get("/healthz", include_in_schema=False)
+def healthz():
+    """Sonde de disponibilité pour les plateformes d'hébergement."""
+    return {"status": "ok"}
+
+
+if __name__ == "__main__":
+    import os
+    import uvicorn
+
+    uvicorn.run("app.main:app", host="0.0.0.0",
+                port=int(os.getenv("PORT", "8000")))
