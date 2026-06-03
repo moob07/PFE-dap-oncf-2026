@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% from 'partials/macros.html' import priority_badge, empty_state %}
+{% block title %}Escalades{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb"><i data-lucide="home"></i> Accueil <i data-lucide="chevron-right"></i> Escalades</div>
+    <h1>Escalades approvisionnement</h1>
+    <div class="subtitle">{{ daps|length }} rupture(s) en cours</div>
+  </div>
+</div>
+
+{% if daps %}
+<div class="table-wrap">
+  <table class="data">
+    <thead><tr><th>Référence</th><th>Demandeur</th><th>Unité</th><th>Motif rupture</th><th>Priorité</th><th>Date besoin</th><th></th></tr></thead>
+    <tbody>
+      {% for d in daps %}
+      <tr class="row-danger">
+        <td><a class="ref-link" href="/daps/{{ d.id }}">{{ d.reference }}</a></td>
+        <td>{{ d.demandeurNom }}</td>
+        <td>{{ d.uniteLibelle }}</td>
+        <td>{{ d.motifRupture }}</td>
+        <td>{{ priority_badge(d.priorite) }}</td>
+        <td>{{ d.dateBesoin|fmt_date }}</td>
+        <td><a href="/escalades/{{ d.id }}" class="btn btn-warning btn-sm"><i data-lucide="wrench"></i> Traiter</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+  {{ empty_state("shield-check", "Aucune escalade", "Aucune rupture de stock à traiter pour le moment.") }}
+{% endif %}
+{% endblock %}

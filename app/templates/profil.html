@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}Mon profil{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb"><i data-lucide="home"></i> Accueil <i data-lucide="chevron-right"></i> Profil</div>
+    <h1>Mon profil</h1>
+    <div class="subtitle">Informations du compte et préférences</div>
+  </div>
+</div>
+
+<div class="grid grid-2" style="align-items:start">
+  <div class="card">
+    <div class="card-head"><h2><i data-lucide="id-card"></i> Identité</h2></div>
+    <div class="profil-head">
+      <div class="avatar avatar-lg">{{ profil.prenom[0] }}{{ profil.nom[0] }}</div>
+      <div>
+        <div class="profil-name">{{ profil.prenom }} {{ profil.nom }}</div>
+        <span class="badge badge-blue">{{ ROLE_META[profil.role].label }}</span>
+      </div>
+    </div>
+    <dl class="kv">
+      <div><dt>Unité</dt><dd>{{ unite.libelle if unite else '—' }}</dd></div>
+      <div><dt>Rôle</dt><dd>{{ ROLE_META[profil.role].label }}</dd></div>
+      <div><dt>Statut</dt><dd>{% if profil.actif %}<span class="badge badge-green">Actif</span>{% else %}<span class="badge badge-gray">Inactif</span>{% endif %}</dd></div>
+    </dl>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2><i data-lucide="settings-2"></i> Coordonnées & sécurité</h2></div>
+    <form method="post" action="/profil">
+      <div class="form-grid" style="gap:14px">
+        <div class="field"><label>Prénom</label><input value="{{ profil.prenom }}" disabled></div>
+        <div class="field"><label>Nom</label><input value="{{ profil.nom }}" disabled></div>
+        <div class="field" style="grid-column:span 2"><label>Email</label>
+          <input type="email" name="email" value="{{ profil.email }}" required></div>
+        <div class="field" style="grid-column:span 2"><label>Téléphone</label>
+          <input name="telephone" value="{{ profil.telephone or '' }}" placeholder="06 00 00 00 00"></div>
+        <div class="field" style="grid-column:span 2"><label>Nouveau mot de passe</label>
+          <input type="password" name="password" placeholder="Laisser vide pour conserver l'actuel" minlength="6">
+          <span class="hint">6 caractères minimum.</span></div>
+      </div>
+      <label class="check" style="margin-top:12px">
+        <input type="checkbox" name="pref_email" {{ 'checked' if profil.prefs and profil.prefs.email }}>
+        <span>Recevoir les notifications par email</span>
+      </label>
+      <div style="margin-top:16px;display:flex;justify-content:flex-end">
+        <button class="btn btn-primary"><i data-lucide="save"></i> Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block title %}Utilisateurs{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb"><i data-lucide="home"></i> Accueil <i data-lucide="chevron-right"></i> Admin <i data-lucide="chevron-right"></i> Utilisateurs</div>
+    <h1>Référentiel utilisateurs</h1>
+    <div class="subtitle">{{ users|length }} utilisateur(s)</div>
+  </div>
+  <div class="page-actions"><button class="btn btn-primary" onclick="openUser()"><i data-lucide="user-plus"></i> Nouvel utilisateur</button></div>
+</div>
+
+<div class="table-wrap">
+  <table class="data">
+    <thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Unité</th><th>Statut</th><th></th></tr></thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td><strong>{{ u.prenom }} {{ u.nom }}</strong></td>
+        <td>{{ u.email }}</td>
+        <td><span class="badge badge-blue">{{ ROLE_META[u.role].label }}</span></td>
+        <td>{{ u.uniteLibelle }}</td>
+        <td>{% if u.actif %}<span class="badge badge-green">Actif</span>{% else %}<span class="badge badge-gray">Inactif</span>{% endif %}</td>
+        <td style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm" onclick='openUser({{ u|tojson }})'><i data-lucide="pencil"></i></button>
+          <form method="post" action="/admin/users/{{ u.id }}/toggle"><button class="btn btn-ghost btn-sm"><i data-lucide="power"></i></button></form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div id="userModal" class="modal-overlay" hidden>
+  <div class="modal" style="max-width:520px">
+    <div class="modal-head"><i data-lucide="user"></i> <span id="userTitle">Nouvel utilisateur</span></div>
+    <form method="post" action="/admin/users/save">
+      <div class="modal-body">
+        <input type="hidden" name="id" id="u_id">
+        <div class="form-grid" style="gap:14px">
+          <div class="field"><label>Prénom</label><input name="prenom" id="u_prenom" required></div>
+          <div class="field"><label>Nom</label><input name="nom" id="u_nom" required></div>
+          <div class="field" style="grid-column:span 2"><label>Email</label><input type="email" name="email" id="u_email" required></div>
+          <div class="field"><label>Rôle</label><select name="role" id="u_role">{% for r in roles %}<option value="{{ r }}">{{ ROLE_META[r].label }}</option>{% endfor %}</select></div>
+          <div class="field"><label>Unité</label><select name="uniteId" id="u_unite">{% for un in unites %}<option value="{{ un.id }}">{{ un.libelle }}</option>{% endfor %}</select></div>
+          <div class="field" style="grid-column:span 2"><label>Téléphone</label><input name="telephone" id="u_tel"></div>
+        </div>
+        <div class="hint" style="margin-top:6px">Les nouveaux comptes reçoivent le mot de passe de démonstration par défaut.</div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-ghost" onclick="closeUser()">Annuler</button>
+        <button type="submit" class="btn btn-primary">Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const um = document.getElementById("userModal");
+  function openUser(u) {
+    document.getElementById("userTitle").textContent = u ? "Modifier l'utilisateur" : "Nouvel utilisateur";
+    const f = (id, v) => document.getElementById(id).value = v ?? "";
+    f("u_id", u && u.id); f("u_prenom", u && u.prenom); f("u_nom", u && u.nom);
+    f("u_email", u && u.email); f("u_role", u ? u.role : "DEMANDEUR");
+    f("u_unite", u ? u.uniteId : 1); f("u_tel", u && u.telephone);
+    um.hidden = false;
+  }
+  function closeUser() { um.hidden = true; }
+  um.addEventListener("click", e => { if (e.target === um) closeUser(); });
+</script>
+{% endblock %}

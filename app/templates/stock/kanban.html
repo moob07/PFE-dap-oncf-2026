@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% from 'partials/macros.html' import priority_badge %}
+{% block title %}Kanban magasin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb"><i data-lucide="home"></i> Accueil <i data-lucide="chevron-right"></i> Kanban</div>
+    <h1>Kanban gestionnaire</h1>
+    <div class="subtitle">{{ total }} DAP actives · glissez les cartes pour changer de statut</div>
+  </div>
+</div>
+
+<div class="kanban" id="kanbanBoard">
+  {% for col in cols %}
+  <div class="kanban-col" data-statut="{{ col.statut }}">
+    <div class="kanban-col-head">{{ col.label }}<span class="kanban-count">{{ col.daps|length }}</span></div>
+    <div class="kanban-cards">
+      {% for d in col.daps %}
+      <div class="kanban-card" draggable="{{ 'false' if col.statut == 'LIVREE' else 'true' }}"
+           data-id="{{ d.id }}" data-statut="{{ d.statut }}">
+        <div class="kc-head"><span class="kc-ref">{{ d.reference }}</span>{{ priority_badge(d.priorite) }}</div>
+        <div class="kc-meta">
+          <span>{{ d.demandeurNom }} · {{ d.uniteLibelle }}</span>
+          {% set today = ''|fmt_date %}
+          <span class="{{ 'late' if d.dateBesoin < (d.createdAt[:10]) else '' }}">Besoin : {{ d.dateBesoin|fmt_date }}</span>
+          <span>{{ d.nbLignes }} ligne(s){% if d.aRupture %} · <span class="late">rupture</span>{% endif %}</span>
+        </div>
+        <div class="kc-foot">
+          <a href="/daps/{{ d.id }}" class="btn btn-ghost btn-sm" onclick="event.stopPropagation()"><i data-lucide="eye"></i></a>
+          {% if col.statut == 'EN_PREPARATION' %}
+          <button class="btn btn-warning btn-sm" data-action-form data-action="signaler_rupture"
+                  data-url="/daps/{{ d.id }}/action" data-label="Signaler rupture" data-motif="1"
+                  data-confirm-class="btn-warning" onclick="event.stopPropagation()">
+            <i data-lucide="alert-triangle"></i> Rupture</button>
+          {% elif col.statut == 'PRETE_A_LIVRER' %}
+          <a href="/stock/livraison/{{ d.id }}" class="btn btn-primary btn-sm" onclick="event.stopPropagation()"><i data-lucide="truck"></i> Livrer</a>
+          {% endif %}
+        </div>
+      </div>
+      {% else %}
+      <div class="text-muted" style="font-size:12px;padding:10px;text-align:center">Aucune carte</div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

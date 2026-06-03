@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Éditer' if mode == 'edit' else 'Nouvelle' }} DAP{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb"><i data-lucide="home"></i> Accueil <i data-lucide="chevron-right"></i> DAP <i data-lucide="chevron-right"></i> {{ 'Édition' if mode == 'edit' else 'Création' }}</div>
+    <h1>{{ 'Modifier le brouillon' if mode == 'edit' else 'Nouvelle demande' }}</h1>
+    <div class="subtitle">Renseignez l'organe, l'OT, la priorité et les pièces souhaitées.</div>
+  </div>
+</div>
+
+{% if error %}<div class="form-error"><i data-lucide="alert-circle"></i>{{ error }}</div>{% endif %}
+
+<form method="post" action="{{ '/daps/' + dap.id|string + '/edit' if mode == 'edit' else '/daps/new' }}" id="dapForm">
+  <div class="form-grid">
+    <!-- Colonne gauche -->
+    <div class="card">
+      <div class="card-head"><h2><i data-lucide="settings-2"></i> Informations</h2></div>
+
+      <div class="field">
+        <label>Organe concerné</label>
+        <div class="radio-cards">
+          {% for code, label in ORGANE_LABEL.items() %}
+          <div class="radio-card">
+            <input type="radio" id="org_{{ code }}" name="organe" value="{{ code }}"
+                   {{ 'checked' if (dap and dap.organe == code) or (not dap and loop.first) }}>
+            <label for="org_{{ code }}">{{ label }}</label>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Ordre de Travail (OT)</label>
+        <input type="text" name="ot" list="otList" placeholder="OT-2026-1234" value="{{ dap.ot if dap else '' }}">
+        <datalist id="otList">
+          <option value="OT-2026-1024"><option value="OT-2026-2048"><option value="OT-2026-3072">
+        </datalist>
+      </div>
+
+      <div class="field">
+        <label>Priorité</label>
+        <div class="radio-cards">
+          {% for code, meta in PRIORITY_META.items() %}
+          <div class="radio-card">
+            <input type="radio" id="prio_{{ code }}" name="priorite" value="{{ code }}"
+                   {{ 'checked' if (dap and dap.priorite == code) or (not dap and code == 'NORMALE') }}>
+            <label for="prio_{{ code }}">{{ meta.label }}<small>{% if code == 'CRITIQUE' %}Justification requise{% elif code == 'URGENTE' %}Traitement prioritaire{% else %}Standard{% endif %}</small></label>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Date de besoin</label>
+        <input type="date" name="dateBesoin" min="{{ min_date }}" value="{{ dap.dateBesoin if dap else '' }}">
+        <span class="hint">Minimum J+1.</span>
+      </div>
+
+      <div class="field">
+        <label>Justification <span class="text-muted">(requise si priorité critique, ≥ 20 caractères)</span></label>
+        <textarea name="justification" placeholder="Motif du besoin…">{{ dap.justification if dap else '' }}</textarea>
+      </div>
+    </div>
+
+    <!-- Colonne droite : lignes -->
+    <div class="card">
+      <div class="card-head">
+        <h2><i data-lucide="list"></i> Lignes de pièces</h2>
+        <button type="button" class="btn btn-ghost btn-sm" id="addLine"><i data-lucide="plus"></i> Ajouter</button>
+      </div>
+      <div class="table-wrap" style="border:none">
+        <table class="data" id="linesTable">
+          <thead><tr><th style="width:42%">Pièce</th><th>Qté</th><th>Stock</th><th>Commentaire</th><th></th></tr></thead>
+          <tbody id="linesBody"></tbody>
+        </table>
+      </div>
+      <div class="hint" style="margin-top:8px">Au moins une ligne est requise.</div>
+    </div>
+  </div>
+
+  <div class="flex-between section-gap">
+    <a href="{{ '/daps/' + dap.id|string if mode == 'edit' else '/daps' }}" class="btn btn-ghost"><i data-lucide="x"></i> Annuler</a>
+    <div style="display:flex;gap:10px">
+      <button type="submit" name="_action" value="draft" class="btn btn-ghost"><i data-lucide="save"></i> Enregistrer brouillon</button>
+      <button type="submit" name="_action" value="submit" class="btn btn-primary"><i data-lucide="send"></i> Soumettre</button>
+    </div>
+  </div>
+</form>
+
+<template id="lineTemplate">
+  <tr class="line-row">
+    <td>
+      <select name="pieceId" class="piece-select">
+        <option value="">— Choisir —</option>
+        {% for p in pieces %}<option value="{{ p.id }}" data-stock="{{ p.stockActuel }}" data-seuil="{{ p.seuilMini }}">{{ p.code }} — {{ p.designation }}</option>{% endfor %}
+      </select>
+    </td>
+    <td><input type="number" name="quantite" min="1" value="1" style="width:72px"></td>
+    <td class="stock-cell text-muted">—</td>
+    <td><input type="text" name="commentaire" placeholder="Optionnel"></td>
+    <td><button type="button" class="btn btn-ghost btn-sm remove-line"><i data-lucide="trash-2"></i></button></td>
+  </tr>
+</template>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const body = document.getElementById("linesBody");
+  const tpl = document.getElementById("lineTemplate");
+
+  function wire(row) {
+    const sel = row.querySelector(".piece-select");
+    const qty = row.querySelector("input[name=quantite]");
+    const cell = row.querySelector(".stock-cell");
+    function refresh() {
+      const opt = sel.options[sel.selectedIndex];
+      if (!opt || !opt.value) { cell.textContent = "—"; cell.className = "stock-cell text-muted"; return; }
+      const stock = parseInt(opt.dataset.stock, 10);
+      const need = parseInt(qty.value || "0", 10);
+      cell.textContent = stock + " dispo";
+      cell.className = "stock-cell " + (stock >= need ? "text-success" : "text-danger");
+    }
+    sel.addEventListener("change", refresh);
+    qty.addEventListener("input", refresh);
+    row.querySelector(".remove-line").addEventListener("click", () => {
+      if (body.children.length > 1) row.remove();
+      else dapToast("Au moins une ligne est requise.", "warning");
+    });
+    refresh();
+    return { sel, qty, cell };
+  }
+
+  function addLine(pieceId, q, comment) {
+    const node = tpl.content.cloneNode(true);
+    const row = node.querySelector("tr");
+    body.appendChild(row);
+    const ctl = wire(row);
+    if (pieceId) ctl.sel.value = String(pieceId);
+    if (q) ctl.qty.value = q;
+    if (comment) row.querySelector("input[name=commentaire]").value = comment;
+    ctl.sel.dispatchEvent(new Event("change"));
+    if (window.lucide) lucide.createIcons();
+  }
+
+  document.getElementById("addLine").addEventListener("click", () => addLine());
+
+  const existing = {{ (dap.lignes if dap and dap.lignes else [])|tojson }};
+  if (existing.length) existing.forEach(l => addLine(l.pieceId, l.quantiteDemandee, l.commentaire));
+  else addLine();
+</script>
+{% endblock %}

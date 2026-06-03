@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% from 'partials/macros.html' import status_badge, priority_badge, empty_state %}
+{% block title %}Demandes (DAP){% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb"><i data-lucide="home"></i> Accueil <i data-lucide="chevron-right"></i> DAP</div>
+    <h1>Demandes d'approvisionnement</h1>
+    <div class="subtitle">{{ total }} demande(s)</div>
+  </div>
+  <div class="page-actions">
+    {% if user.role == 'DEMANDEUR' %}<a href="/daps/new" class="btn btn-primary"><i data-lucide="plus"></i> Nouvelle DAP</a>{% endif %}
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:18px">
+  <form method="get" action="/daps">
+    <div class="card-sub">Filtres</div>
+    <div class="field" style="margin-bottom:14px">
+      <label>Statut</label>
+      <div class="chips">
+        {% for code, meta in STATUS_META.items() %}
+        <label class="chip {{ 'active' if code in f_statuts }}">
+          <input type="checkbox" name="statut" value="{{ code }}" {{ 'checked' if code in f_statuts }}>
+          {{ meta.label }}
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="filters">
+      <div class="field">
+        <label>Priorité</label>
+        <div class="chips">
+          {% for code, meta in PRIORITY_META.items() %}
+          <label class="chip {{ 'active' if code in f_priorites }}">
+            <input type="checkbox" name="priorite" value="{{ code }}" {{ 'checked' if code in f_priorites }}>{{ meta.label }}
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="field">
+        <label>Organe</label>
+        <select name="organe">
+          <option value="">Tous</option>
+          {% for code, label in ORGANE_LABEL.items() %}
+          <option value="{{ code }}" {{ 'selected' if f_organe == code }}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% if user.role != 'DEMANDEUR' %}
+      <div class="field">
+        <label>Unité</label>
+        <select name="unite">
+          <option value="">Toutes</option>
+          {% for u in unites %}<option value="{{ u.id }}" {{ 'selected' if f_unite == u.id|string }}>{{ u.libelle }}</option>{% endfor %}
+        </select>
+      </div>
+      {% endif %}
+      <div class="field" style="flex:1">
+        <label>Recherche</label>
+        <input type="text" name="q" value="{{ f_q }}" placeholder="Référence, OT, justification…">
+      </div>
+      <button class="btn btn-primary" type="submit"><i data-lucide="filter"></i> Filtrer</button>
+      <a href="/daps" class="btn btn-ghost">Réinitialiser</a>
+    </div>
+  </form>
+</div>
+
+{% if daps %}
+<div class="table-wrap">
+  <table class="data">
+    <thead>
+      <tr>
+        <th>Référence</th><th>Créée le</th><th>Demandeur</th><th>Organe</th>
+        <th>OT</th><th>Priorité</th><th>Date besoin</th><th>Statut</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in daps %}
+      <tr>
+        <td><a class="ref-link" href="/daps/{{ d.id }}">{{ d.reference }}</a></td>
+        <td>{{ d.createdAt|fmt_date }}</td>
+        <td>{{ d.demandeurNom }}</td>
+        <td>{{ d.organeLabel }}</td>
+        <td class="cell-mono">{{ d.ot }}</td>
+        <td>{{ priority_badge(d.priorite) }}</td>
+        <td>{{ d.dateBesoin|fmt_date }}</td>
+        <td>{{ status_badge(d.statut) }}</td>
+        <td><a href="/daps/{{ d.id }}" class="btn btn-ghost btn-sm"><i data-lucide="eye"></i></a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if pages > 1 %}
+<div class="flex-between section-gap">
+  <div class="text-muted" style="font-size:12px">Page {{ page }} / {{ pages }}</div>
+  <div style="display:flex;gap:8px">
+    {% set qs = '&statut=' + f_statuts|join('&statut=') if f_statuts else '' %}
+    {% if page > 1 %}<a class="btn btn-ghost btn-sm" href="?page={{ page-1 }}">Précédent</a>{% endif %}
+    {% if page < pages %}<a class="btn btn-ghost btn-sm" href="?page={{ page+1 }}">Suivant</a>{% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% else %}
+  {{ empty_state("search-x", "Aucune DAP trouvée", "Aucune demande ne correspond à ces filtres.") }}
+{% endif %}
+{% endblock %}

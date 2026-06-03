@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% from 'partials/macros.html' import empty_state %}
+{% block title %}Référentiel pièces{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb"><i data-lucide="home"></i> Accueil <i data-lucide="chevron-right"></i> Admin <i data-lucide="chevron-right"></i> Pièces</div>
+    <h1>Référentiel pièces</h1>
+    <div class="subtitle">{{ pieces|length }} pièce(s)</div>
+  </div>
+  <div class="page-actions">
+    <button class="btn btn-primary" onclick="openPiece()"><i data-lucide="plus"></i> Nouvelle pièce</button>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:18px">
+  <form method="get" action="/admin/pieces" class="filters" style="margin-bottom:0">
+    <div class="field"><label>Famille</label>
+      <select name="famille"><option value="">Toutes</option>
+        {% for f in familles %}<option value="{{ f }}" {{ 'selected' if f_famille == f }}>{{ f }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field" style="flex:1"><label>Recherche</label>
+      <input type="text" name="q" value="{{ f_q }}" placeholder="Code ou désignation…">
+    </div>
+    <button class="btn btn-primary"><i data-lucide="filter"></i> Filtrer</button>
+    <a href="/admin/pieces" class="btn btn-ghost">Réinitialiser</a>
+  </form>
+</div>
+
+{% if pieces %}
+<div class="table-wrap">
+  <table class="data">
+    <thead><tr><th>Code</th><th>Désignation</th><th>Famille</th><th>Fournisseur</th><th>Stock</th><th>Seuil</th><th>Prix</th><th>Statut</th><th></th></tr></thead>
+    <tbody>
+      {% for p in pieces %}
+      <tr class="{{ 'row-danger' if p.stockActuel < p.seuilMini }}">
+        <td class="cell-mono">{{ p.code }}</td>
+        <td>{{ p.designation }}</td>
+        <td><span class="tag">{{ p.famille }}</span></td>
+        <td>{{ p.fournisseur }}</td>
+        <td class="{{ 'text-danger' if p.stockActuel < p.seuilMini else '' }}">{{ p.stockActuel }} {{ p.uniteMesure }}</td>
+        <td>{{ p.seuilMini }}</td>
+        <td>{{ p.prixIndicatif|fmt_money }}</td>
+        <td>{% if p.actif %}<span class="badge badge-green">Actif</span>{% else %}<span class="badge badge-gray">Inactif</span>{% endif %}</td>
+        <td style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm" onclick='openPiece({{ p|tojson }})'><i data-lucide="pencil"></i></button>
+          <form method="post" action="/admin/pieces/{{ p.id }}/toggle"><button class="btn btn-ghost btn-sm"><i data-lucide="power"></i></button></form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}{{ empty_state("package-x", "Aucune pièce", "Aucune pièce ne correspond à ces critères.") }}{% endif %}
+
+<div id="pieceModal" class="modal-overlay" hidden>
+  <div class="modal" style="max-width:560px">
+    <div class="modal-head"><i data-lucide="package"></i> <span id="pieceTitle">Nouvelle pièce</span></div>
+    <form method="post" action="/admin/pieces/save">
+      <div class="modal-body">
+        <input type="hidden" name="id" id="p_id">
+        <div class="form-grid" style="gap:14px">
+          <div class="field"><label>Code</label><input name="code" id="p_code" required></div>
+          <div class="field"><label>Désignation</label><input name="designation" id="p_designation" required></div>
+          <div class="field"><label>Famille</label><select name="famille" id="p_famille">{% for f in familles %}<option value="{{ f }}">{{ f }}</option>{% endfor %}</select></div>
+          <div class="field"><label>Fournisseur</label><input name="fournisseur" id="p_fournisseur"></div>
+          <div class="field"><label>Unité de mesure</label><select name="uniteMesure" id="p_uniteMesure"><option>pc</option><option>kg</option><option>m</option></select></div>
+          <div class="field"><label>Délai standard (j)</label><input type="number" name="delaiStandardJ" id="p_delai" value="5"></div>
+          <div class="field"><label>Stock actuel</label><input type="number" name="stockActuel" id="p_stock" value="0"></div>
+          <div class="field"><label>Seuil mini</label><input type="number" name="seuilMini" id="p_seuil" value="5"></div>
+          <div class="field"><label>Prix indicatif (DH)</label><input type="number" step="0.01" name="prixIndicatif" id="p_prix" value="0"></div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-ghost" onclick="closePiece()">Annuler</button>
+        <button type="submit" class="btn btn-primary">Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const m = document.getElementById("pieceModal");
+  function openPiece(p) {
+    document.getElementById("pieceTitle").textContent = p ? "Modifier la pièce" : "Nouvelle pièce";
+    const f = (id, v) => document.getElementById(id).value = v ?? "";
+    f("p_id", p && p.id); f("p_code", p && p.code); f("p_designation", p && p.designation);
+    f("p_famille", p ? p.famille : "Visserie"); f("p_fournisseur", p && p.fournisseur);
+    f("p_uniteMesure", p ? p.uniteMesure : "pc"); f("p_delai", p ? p.delaiStandardJ : 5);
+    f("p_stock", p ? p.stockActuel : 0); f("p_seuil", p ? p.seuilMini : 5);
+    f("p_prix", p ? p.prixIndicatif : 0);
+    m.hidden = false;
+  }
+  function closePiece() { m.hidden = true; }
+  m.addEventListener("click", e => { if (e.target === m) closePiece(); });
+</script>
+{% endblock %}

@@ -1,0 +1,76 @@
+<header class="topbar glass">
+  <div class="topbar-left">
+    <button class="icon-btn sidebar-toggle" id="sidebarToggle" aria-label="Menu">
+      <i data-lucide="menu"></i>
+    </button>
+    <a href="/" class="brand">
+      <img src="{{ ONCF_LOGO_URL }}" alt="ONCF"
+           onerror="this.outerHTML='<span class=\'brand-fallback\'>ONCF</span>'">
+      <span class="brand-text"><strong>DAP</strong><small>EMIZ · ONCF</small></span>
+    </a>
+  </div>
+
+  <div class="topbar-search">
+    <i data-lucide="search"></i>
+    <input type="text" id="globalSearch" placeholder="Rechercher une DAP, pièce, OT… (Ctrl+K)"
+           autocomplete="off">
+    <div class="search-panel" id="searchPanel" hidden></div>
+  </div>
+
+  <div class="topbar-right">
+    <div class="dropdown" id="notifDropdown">
+      <button class="icon-btn" id="notifBtn" aria-label="Notifications">
+        <i data-lucide="bell"></i>
+        {% if unread_count and unread_count > 0 %}<span class="badge-count">{{ unread_count }}</span>{% endif %}
+      </button>
+      <div class="dropdown-menu notif-menu" hidden>
+        <div class="dropdown-head">Notifications</div>
+        {% if recent_notifs %}
+          {% for n in recent_notifs %}
+            <a href="/notifications/{{ n.id }}/open" class="notif-item {{ '' if n.lu else 'unread' }}">
+              <span class="dot"></span>
+              <span class="notif-text"><strong>{{ n.titre }}</strong><small>{{ n.contenu }}</small></span>
+            </a>
+          {% endfor %}
+        {% else %}
+          <div class="dropdown-empty">Aucune notification</div>
+        {% endif %}
+        <a href="/notifications" class="dropdown-foot">Voir toutes</a>
+      </div>
+    </div>
+
+    <form action="/switch-role" method="post" class="role-switch" id="roleSwitch">
+      <div class="dropdown" id="roleDropdown">
+        <button type="button" class="role-btn" id="roleBtn">
+          <i data-lucide="repeat"></i>
+          <span>{{ ROLE_META[user.role].label if user else 'Rôle' }}</span>
+          <i data-lucide="chevron-down"></i>
+        </button>
+        <div class="dropdown-menu role-menu" hidden>
+          <div class="dropdown-head">Changer de rôle (démo)</div>
+          {% for code, meta in ROLE_META.items() %}
+            <button type="submit" name="role" value="{{ code }}"
+                    class="role-option {{ 'active' if user and user.role == code }}">
+              <span>{{ meta.label }}</span><small>{{ meta.desc }}</small>
+            </button>
+          {% endfor %}
+        </div>
+      </div>
+    </form>
+
+    <div class="dropdown" id="avatarDropdown">
+      <button class="avatar-btn" id="avatarBtn">
+        <span class="avatar">{{ (user.prenom[0] ~ user.nom[0]) if user else '?' }}</span>
+      </button>
+      <div class="dropdown-menu avatar-menu" hidden>
+        <div class="avatar-head">
+          <strong>{{ user.prenom }} {{ user.nom }}</strong>
+          <small>{{ user.email }}</small>
+        </div>
+        <a href="/profil"><i data-lucide="user"></i> Profil</a>
+        <a href="/credits"><i data-lucide="award"></i> Crédits</a>
+        <a href="/logout" class="danger"><i data-lucide="log-out"></i> Déconnexion</a>
+      </div>
+    </div>
+  </div>
+</header>

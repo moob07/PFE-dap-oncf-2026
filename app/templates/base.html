@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}DAP — Approvisionnement Pièces{% endblock %} · ONCF EMIZ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%231E3A5F'/><text x='16' y='22' font-size='16' fill='white' text-anchor='middle' font-family='Arial' font-weight='bold'>D</text></svg>">
+</head>
+<body>
+  <div class="bg-liquid"><span class="blob blob-1"></span><span class="blob blob-2"></span><span class="blob blob-3"></span></div>
+
+  <div class="app-shell">
+    {% include 'partials/topbar.html' %}
+    <div class="app-main">
+      {% include 'partials/sidebar.html' %}
+      <main class="content" id="content">
+        {% set flash = request.session.pop('flash', None) %}
+        {% if flash %}<div class="toast-mount" data-type="{{ flash[0] }}" data-msg="{{ flash[1] }}"></div>{% endif %}
+        {% block content %}{% endblock %}
+        <footer class="app-footer">
+          <span>Plateforme DAP — Atelier EMIZ / ONCF · TMIZ</span>
+          <span>© Mohamed Mobine El Hajji — 2026</span>
+        </footer>
+      </main>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <div id="modal-root"></div>
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="/static/js/app.js"></script>
+  {% block scripts %}{% endblock %}
+  <script>if (window.lucide) lucide.createIcons();</script>
+</body>
+</html>

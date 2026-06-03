@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% from 'partials/macros.html' import status_badge, priority_badge, stepper %}
+{% block title %}{{ dap.reference }}{% endblock %}
+
+{% set needs_motif = {'rejeter': 1, 'signaler_rupture': 1, 'demander_complement': 1} %}
+{% set action_class = {'approuver': 'btn-success', 'rejeter': 'btn-danger',
+   'soumettre': 'btn-primary', 'annuler': 'btn-danger', 'accuser_reception': 'btn-success',
+   'demarrer_preparation': 'btn-primary', 'marquer_pret': 'btn-primary',
+   'signaler_rupture': 'btn-warning', 'demander_complement': 'btn-ghost', 'appro_recu': 'btn-success'} %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb"><a href="/daps">DAP</a> <i data-lucide="chevron-right"></i> {{ dap.reference }}</div>
+    <h1 style="display:flex;align-items:center;gap:12px">{{ dap.reference }} {{ status_badge(dap.statut) }}</h1>
+    <div class="subtitle">{{ dap.organeLabel }} · OT {{ dap.ot }} · {{ priority_badge(dap.priorite) }}</div>
+  </div>
+  <div class="page-actions">
+    {% if can_edit %}<a href="/daps/{{ dap.id }}/edit" class="btn btn-ghost"><i data-lucide="pencil"></i> Éditer</a>{% endif %}
+    {% for a in actions %}
+      {% if a == 'livrer' %}
+        <a href="/stock/livraison/{{ dap.id }}" class="btn btn-primary"><i data-lucide="truck"></i> Livrer</a>
+      {% else %}
+        <button class="btn {{ action_class.get(a, 'btn-primary') }}"
+                data-action-form data-action="{{ a }}" data-url="/daps/{{ dap.id }}/action"
+                data-label="{{ ACTION_LABEL[a] }}" data-motif="{{ needs_motif.get(a, 0) }}"
+                data-confirm-class="{{ action_class.get(a, 'btn-primary') }}">
+          {{ ACTION_LABEL[a] }}
+        </button>
+      {% endif %}
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:18px">{{ stepper(dap.statut) }}</div>
+
+{% if dap.statut == 'EN_ESCALADE_APPRO' and dap.motifRupture %}
+<div class="callout callout-danger" style="margin-bottom:18px">
+  <i data-lucide="alert-triangle"></i>
+  <div><strong>En escalade approvisionnement.</strong><br>Motif de rupture : {{ dap.motifRupture }}</div>
+</div>
+{% endif %}
+{% if dap.statut == 'REJETEE' and dap.motifRejet %}
+<div class="callout callout-danger" style="margin-bottom:18px">
+  <i data-lucide="x-circle"></i><div><strong>DAP rejetée.</strong><br>Motif : {{ dap.motifRejet }}</div>
+</div>
+{% endif %}
+
+<div class="info-grid" style="margin-bottom:18px">
+  <div class="card">
+    <div class="card-head"><h2><i data-lucide="info"></i> Demande</h2></div>
+    <div class="info-list">
+      <div class="info-row"><span class="k">Demandeur</span><span class="v">{{ dap.demandeurNom }}</span></div>
+      <div class="info-row"><span class="k">Unité</span><span class="v">{{ dap.uniteLibelle }}</span></div>
+      <div class="info-row"><span class="k">Date création</span><span class="v">{{ dap.createdAt|fmt_datetime }}</span></div>
+      <div class="info-row"><span class="k">Date besoin</span><span class="v">{{ dap.dateBesoin|fmt_date }}</span></div>
+      <div class="info-row"><span class="k">Priorité</span><span class="v">{{ priority_badge(dap.priorite) }}</span></div>
+      <div class="info-row"><span class="k">OT</span><span class="v mono">{{ dap.ot }}</span></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head"><h2><i data-lucide="check-circle"></i> Traitement</h2></div>
+    <div class="info-list">
+      <div class="info-row"><span class="k">Approbateur</span><span class="v">{{ dap.approbateurNom or '—' }}</span></div>
+      <div class="info-row"><span class="k">Date approbation</span><span class="v">{{ dap.approuveeAt|fmt_datetime }}</span></div>
+      <div class="info-row"><span class="k">Date livraison</span><span class="v">{{ dap.livreeAt|fmt_datetime }}</span></div>
+      <div class="info-row"><span class="k">Date clôture</span><span class="v">{{ dap.clotureeAt|fmt_datetime }}</span></div>
+      <div class="info-row"><span class="k">Signature</span><span class="v">{% if dap.signature %}<span class="badge badge-green">Signée</span>{% else %}—{% endif %}</span></div>
+    </div>
+  </div>
+</div>
+
+{% if dap.justification %}
+<div class="callout callout-warning" style="margin-bottom:18px">
+  <i data-lucide="quote"></i><div><strong>Justification :</strong> {{ dap.justification }}</div>
+</div>
+{% endif %}
+
+<div class="card" style="margin-bottom:18px">
+  <div class="card-head"><h2><i data-lucide="package"></i> Pièces demandées</h2></div>
+  <div class="table-wrap" style="border:none">
+    <table class="data">
+      <thead><tr><th>Code</th><th>Désignation</th><th>Qté demandée</th><th>Qté livrée</th><th>Stock dispo</th><th>Commentaire</th></tr></thead>
+      <tbody>
+        {% for l in dap.lignesEnrichies %}
+        <tr class="{{ 'row-danger' if l.manque }}">
+          <td class="cell-mono">{{ l.code }}</td>
+          <td>{{ l.designation }}{% if l.manque %} <i data-lucide="alert-triangle" style="color:#dc2626;width:14px;height:14px;vertical-align:-2px"></i>{% endif %}</td>
+          <td>{{ l.quantiteDemandee }} {{ l.uniteMesure }}</td>
+          <td>{{ l.quantiteLivree }} {{ l.uniteMesure }}</td>
+          <td class="{{ 'text-danger' if l.manque else 'text-success' }}">{{ l.stockActuel }}</td>
+          <td class="text-muted">{{ l.commentaire or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><h2><i data-lucide="history"></i> Historique</h2></div>
+  {% if dap.history %}
+  <div class="timeline">
+    {% for h in dap.history|reverse %}
+    <div class="tl-item">
+      <div class="tl-dot"><i data-lucide="dot"></i></div>
+      <div class="tl-body">
+        <div class="tl-title">{{ h.actionLabel }} — {{ STATUS_META[h.statut].label }}</div>
+        <div class="tl-meta">{{ h.userName }} · {{ h.at|fmt_datetime }}</div>
+        {% if h.commentaire %}<div class="tl-comment">{{ h.commentaire }}</div>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}<div class="text-muted">Aucun historique.</div>{% endif %}
+</div>
+{% endblock %}

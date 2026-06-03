@@ -1,0 +1,57 @@
+{# Macros réutilisables : badges, cartes KPI, stepper, état vide #}
+
+{% macro status_badge(statut) %}
+  {% set m = STATUS_META.get(statut, {'label': statut, 'color': 'slate'}) %}
+  <span class="badge badge-{{ m.color }}">{{ m.label }}</span>
+{% endmacro %}
+
+{% macro priority_badge(priorite) %}
+  {% set m = PRIORITY_META.get(priorite, {'label': priorite, 'color': 'slate'}) %}
+  <span class="badge badge-soft badge-{{ m.color }}">
+    {% if priorite == 'CRITIQUE' %}<i data-lucide="alert-octagon"></i>
+    {% elif priorite == 'URGENTE' %}<i data-lucide="alert-triangle"></i>{% endif %}
+    {{ m.label }}
+  </span>
+{% endmacro %}
+
+{% macro kpi_card(label, value, icon, color='blue', trend=None, suffix='') %}
+  <div class="kpi-card glass">
+    <div class="kpi-icon kpi-{{ color }}"><i data-lucide="{{ icon }}"></i></div>
+    <div class="kpi-body">
+      <div class="kpi-value">{{ value }}{{ suffix }}</div>
+      <div class="kpi-label">{{ label }}</div>
+    </div>
+    {% if trend is not none %}
+      <div class="kpi-trend {{ 'up' if trend >= 0 else 'down' }}">
+        <i data-lucide="{{ 'trending-up' if trend >= 0 else 'trending-down' }}"></i>
+        {{ trend|abs }}%
+      </div>
+    {% endif %}
+  </div>
+{% endmacro %}
+
+{% macro empty_state(icon, title, message, cta_url=None, cta_label=None) %}
+  <div class="empty-state">
+    <i data-lucide="{{ icon }}"></i>
+    <h3>{{ title }}</h3>
+    <p>{{ message }}</p>
+    {% if cta_url %}<a href="{{ cta_url }}" class="btn btn-primary">{{ cta_label }}</a>{% endif %}
+  </div>
+{% endmacro %}
+
+{% macro stepper(current) %}
+  <div class="stepper">
+    {% set idx = STEPPER_FLOW.index(current) if current in STEPPER_FLOW else -1 %}
+    {% for s in STEPPER_FLOW %}
+      {% set pos = loop.index0 %}
+      {% set state = 'done' if (idx >= 0 and pos < idx) else ('current' if pos == idx else 'todo') %}
+      <div class="step step-{{ state }}">
+        <div class="step-dot">
+          {% if state == 'done' %}<i data-lucide="check"></i>{% else %}{{ loop.index }}{% endif %}
+        </div>
+        <div class="step-label">{{ STATUS_META[s].label }}</div>
+      </div>
+      {% if not loop.last %}<div class="step-line step-line-{{ 'done' if (idx >= 0 and pos < idx) else 'todo' }}"></div>{% endif %}
+    {% endfor %}
+  </div>
+{% endmacro %}

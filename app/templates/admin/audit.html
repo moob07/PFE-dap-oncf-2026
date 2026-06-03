@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% from 'partials/macros.html' import empty_state %}
+{% block title %}Journal d'audit{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb"><i data-lucide="home"></i> Accueil <i data-lucide="chevron-right"></i> Admin <i data-lucide="chevron-right"></i> Audit</div>
+    <h1>Journal d'audit</h1>
+    <div class="subtitle">{{ entries|length }} entrée(s) affichée(s)</div>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:18px">
+  <form method="get" action="/admin/audit" class="filters" style="margin-bottom:0">
+    <div class="field"><label>Utilisateur</label>
+      <select name="user"><option value="">Tous</option>
+        {% for u in users %}<option value="{{ u.id }}" {{ 'selected' if f_user == u.id|string }}>{{ u.prenom }} {{ u.nom }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field"><label>Entité</label>
+      <select name="entite"><option value="">Toutes</option>
+        {% for e in entites %}<option value="{{ e }}" {{ 'selected' if f_entite == e }}>{{ e }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field"><label>Action</label><input type="text" name="action" value="{{ f_action }}" placeholder="LOGIN, DAP_…"></div>
+    <button class="btn btn-primary"><i data-lucide="filter"></i> Filtrer</button>
+    <a href="/admin/audit" class="btn btn-ghost">Réinitialiser</a>
+  </form>
+</div>
+
+{% if entries %}
+<div class="table-wrap">
+  <table class="data">
+    <thead><tr><th>Date</th><th>Utilisateur</th><th>Action</th><th>Entité</th><th>Détails</th></tr></thead>
+    <tbody>
+      {% for e in entries %}
+      <tr>
+        <td>{{ e.createdAt|fmt_datetime }}</td>
+        <td>{{ e.userNom }}</td>
+        <td><span class="tag">{{ e.action }}</span></td>
+        <td>{% if e.entite == 'Dap' %}<a class="ref-link" href="/daps/{{ e.entiteId }}">{{ e.entite }} #{{ e.entiteId }}</a>{% else %}{{ e.entite }} #{{ e.entiteId }}{% endif %}</td>
+        <td><code class="mono" style="font-size:11px">{{ e.payload|tojson }}</code></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}{{ empty_state("scroll-text", "Aucune entrée", "Aucune entrée d'audit pour ces filtres.") }}{% endif %}
+{% endblock %}

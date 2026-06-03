@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% from 'partials/macros.html' import empty_state %}
+{% block title %}Notifications{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb"><i data-lucide="home"></i> Accueil <i data-lucide="chevron-right"></i> Notifications</div>
+    <h1>Centre de notifications</h1>
+    <div class="subtitle">{{ notifs|selectattr('lu', 'equalto', false)|list|length }} non lue(s) sur {{ notifs|length }} affichée(s)</div>
+  </div>
+  <div class="page-actions">
+    <form method="post" action="/notifications/read-all">
+      <button class="btn btn-ghost"><i data-lucide="check-check"></i> Tout marquer comme lu</button>
+    </form>
+  </div>
+</div>
+
+<div class="seg" style="margin-bottom:18px">
+  <a href="/notifications" class="seg-item {{ 'active' if not only_unread }}">Toutes</a>
+  <a href="/notifications?filter=unread" class="seg-item {{ 'active' if only_unread }}">Non lues</a>
+</div>
+
+{% if notifs %}
+<div class="notif-list">
+  {% for n in notifs %}
+  <a href="/notifications/{{ n.id }}/open" class="notif-row card {{ 'is-unread' if not n.lu }}">
+    <div class="notif-dot {{ 'on' if not n.lu }}"></div>
+    <div class="notif-icon"><i data-lucide="{{ 'bell-ring' if not n.lu else 'bell' }}"></i></div>
+    <div class="notif-main">
+      <div class="notif-title">{{ n.titre }}</div>
+      <div class="notif-text text-muted">{{ n.contenu }}</div>
+    </div>
+    <div class="notif-meta">
+      <span class="text-muted" style="font-size:12px">{{ n.createdAt|fmt_relative }}</span>
+      {% if n.dapIdRef %}<i data-lucide="arrow-up-right"></i>{% endif %}
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+{{ empty_state("bell-off", "Aucune notification", "Vous êtes à jour, rien à signaler ici.") }}
+{% endif %}
+{% endblock %}

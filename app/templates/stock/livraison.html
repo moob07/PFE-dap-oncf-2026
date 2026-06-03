@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% from 'partials/macros.html' import priority_badge %}
+{% block title %}Livraison {{ dap.reference }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb"><a href="/stock/kanban">Kanban</a> <i data-lucide="chevron-right"></i> Livraison</div>
+    <h1>Livraison — {{ dap.reference }}</h1>
+    <div class="subtitle">{{ dap.demandeurNom }} · {{ dap.uniteLibelle }} · {{ priority_badge(dap.priorite) }}</div>
+  </div>
+</div>
+
+<form method="post" action="/stock/livraison/{{ dap.id }}">
+  <div class="card" style="margin-bottom:18px">
+    <div class="card-head"><h2><i data-lucide="package-check"></i> Quantités livrées</h2></div>
+    <div class="table-wrap" style="border:none">
+      <table class="data">
+        <thead><tr><th>Pièce</th><th>Qté demandée</th><th>Qté livrée</th><th>Stock après livraison</th></tr></thead>
+        <tbody>
+          {% for l in dap.lignesEnrichies %}
+          <tr class="{{ 'row-danger' if l.manque }}">
+            <td><span class="cell-mono">{{ l.code }}</span> — {{ l.designation }}</td>
+            <td>{{ l.quantiteDemandee }} {{ l.uniteMesure }}</td>
+            <td><input type="number" name="qte_{{ l.id }}" min="0" max="{{ l.stockActuel }}" value="{{ l.quantiteDemandee }}" style="width:90px"></td>
+            <td class="text-muted">{{ l.stockActuel }} → <strong>{{ l.stockActuel - l.quantiteDemandee }}</strong></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:18px">
+    <div class="card-head">
+      <h2><i data-lucide="pen-tool"></i> Signature du demandeur</h2>
+      <button type="button" class="btn btn-ghost btn-sm" id="sigClear"><i data-lucide="eraser"></i> Effacer</button>
+    </div>
+    <canvas id="sigPad" class="sig-pad"></canvas>
+    <input type="hidden" name="signature" id="signatureInput">
+    <div class="hint" style="margin-top:8px">Faites signer le demandeur dans le cadre ci-dessus.</div>
+  </div>
+
+  <div class="flex-between">
+    <a href="/stock/kanban" class="btn btn-ghost"><i data-lucide="arrow-left"></i> Retour</a>
+    <button type="submit" class="btn btn-success"><i data-lucide="check-circle"></i> Valider la livraison</button>
+  </div>
+</form>
+{% endblock %}

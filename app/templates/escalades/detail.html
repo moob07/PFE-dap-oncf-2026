@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% from 'partials/macros.html' import priority_badge, status_badge %}
+{% block title %}Escalade {{ dap.reference }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb"><a href="/escalades">Escalades</a> <i data-lucide="chevron-right"></i> {{ dap.reference }}</div>
+    <h1 style="display:flex;align-items:center;gap:12px">{{ dap.reference }} {{ status_badge(dap.statut) }}</h1>
+    <div class="subtitle">{{ dap.demandeurNom }} · {{ dap.uniteLibelle }} · {{ priority_badge(dap.priorite) }}</div>
+  </div>
+</div>
+
+<div class="callout callout-danger" style="margin-bottom:18px">
+  <i data-lucide="alert-triangle"></i>
+  <div><strong>Motif de rupture :</strong> {{ dap.motifRupture or '—' }}</div>
+</div>
+
+<div class="info-grid" style="margin-bottom:18px">
+  <div class="card">
+    <div class="card-head"><h2><i data-lucide="package"></i> Pièces concernées</h2></div>
+    <div class="table-wrap" style="border:none">
+      <table class="data">
+        <thead><tr><th>Code</th><th>Désignation</th><th>Qté</th><th>Stock</th></tr></thead>
+        <tbody>
+          {% for l in dap.lignesEnrichies %}
+          <tr class="{{ 'row-danger' if l.manque }}">
+            <td class="cell-mono">{{ l.code }}</td><td>{{ l.designation }}</td>
+            <td>{{ l.quantiteDemandee }}</td>
+            <td class="{{ 'text-danger' if l.manque else 'text-success' }}">{{ l.stockActuel }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2><i data-lucide="truck"></i> Traitement de l'escalade</h2></div>
+    <form method="post" action="/escalades/{{ dap.id }}">
+      <div class="field">
+        <label>Délai de réception prévu</label>
+        <input type="date" name="delai">
+        <span class="hint">Date estimée de réception de l'approvisionnement.</span>
+      </div>
+      {% if user.role == 'RESP_APPRO' %}
+      <button type="submit" class="btn btn-success btn-block"><i data-lucide="check-circle"></i> Marquer approvisionnement reçu</button>
+      <div class="hint" style="margin-top:8px">La DAP repassera automatiquement en préparation.</div>
+      {% else %}
+      <div class="text-muted">Seul un responsable d'approvisionnement peut résoudre l'escalade.</div>
+      {% endif %}
+    </form>
+  </div>
+</div>
+{% endblock %}

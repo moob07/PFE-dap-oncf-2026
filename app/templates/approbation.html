@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% from 'partials/macros.html' import priority_badge, empty_state %}
+{% block title %}File d'approbation{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb"><i data-lucide="home"></i> Accueil <i data-lucide="chevron-right"></i> Approbation</div>
+    <h1>File d'approbation</h1>
+    <div class="subtitle">{{ daps|length }} demande(s) en attente · unité {{ ROLE_META[user.role].label }}</div>
+  </div>
+</div>
+
+{% if daps %}
+<form method="post" action="/approbation/bulk" id="bulkForm">
+  <div class="flex-between" style="margin-bottom:14px">
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px"><input type="checkbox" id="selectAll" style="width:auto"> Tout sélectionner</label>
+    <button class="btn btn-success btn-sm" type="submit"><i data-lucide="check-check"></i> Approuver les sélectionnées</button>
+  </div>
+
+  {% for d in daps %}
+  <div class="card appro-card">
+    <div class="appro-top">
+      <div style="display:flex;gap:12px;align-items:center">
+        <input type="checkbox" name="dap_ids" value="{{ d.id }}" class="rowcheck" style="width:auto">
+        <div>
+          <span class="appro-ref">{{ d.reference }}</span> {{ priority_badge(d.priorite) }}
+          <div class="appro-meta">
+            <span><i data-lucide="user" style="width:13px;height:13px;vertical-align:-2px"></i> {{ d.demandeurNom }}</span>
+            <span><i data-lucide="building-2" style="width:13px;height:13px;vertical-align:-2px"></i> {{ d.uniteLibelle }}</span>
+            <span><i data-lucide="hash" style="width:13px;height:13px;vertical-align:-2px"></i> {{ d.ot }}</span>
+            <span><i data-lucide="calendar" style="width:13px;height:13px;vertical-align:-2px"></i> Besoin : {{ d.dateBesoin|fmt_date }}</span>
+            <span><i data-lucide="clock" style="width:13px;height:13px;vertical-align:-2px"></i> Soumise {{ d.soumiseAt|fmt_relative }}</span>
+          </div>
+        </div>
+      </div>
+      <a href="/daps/{{ d.id }}" class="btn btn-ghost btn-sm"><i data-lucide="eye"></i> Détail</a>
+    </div>
+
+    <div class="appro-lines">
+      {% for l in d.lignesEnrichies[:3] %}
+        {{ l.code }} × {{ l.quantiteDemandee }}{{ ", " if not loop.last }}
+      {% endfor %}
+      {% if d.nbLignes > 3 %} <span class="tag">+{{ d.nbLignes - 3 }} autres</span>{% endif %}
+    </div>
+
+    <div class="appro-actions">
+      <button class="btn btn-success btn-sm" data-action-form data-action="approuver"
+              data-url="/daps/{{ d.id }}/action" data-label="Approuver" data-confirm-class="btn-success"><i data-lucide="check"></i> Approuver</button>
+      <button class="btn btn-ghost btn-sm" data-action-form data-action="demander_complement"
+              data-url="/daps/{{ d.id }}/action" data-label="Demander complément" data-motif="1"><i data-lucide="message-square"></i> Complément</button>
+      <button class="btn btn-danger btn-sm" data-action-form data-action="rejeter"
+              data-url="/daps/{{ d.id }}/action" data-label="Rejeter" data-motif="1" data-confirm-class="btn-danger"><i data-lucide="x"></i> Rejeter</button>
+    </div>
+  </div>
+  {% endfor %}
+</form>
+{% else %}
+  {{ empty_state("check-circle", "File vide", "Aucune DAP en attente d'approbation dans votre unité.") }}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const all = document.getElementById("selectAll");
+  if (all) all.addEventListener("change", () => {
+    document.querySelectorAll(".rowcheck").forEach(c => c.checked = all.checked);
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}Crédits{% endblock %}
+
+{% block content %}
+<div class="credits-wrap">
+  <div class="credits-card glass">
+    <img class="credits-logo" src="{{ ONCF_LOGO_URL }}" alt="ONCF"
+         onerror="this.outerHTML='<div class=&quot;credits-logo-fallback&quot;>ONCF</div>'">
+    <h1>Plateforme DAP</h1>
+    <p class="credits-sub">Demande d'Approvisionnement de Pièces — Atelier EMIZ / ONCF</p>
+
+    <div class="credits-divider"></div>
+
+    <div class="credits-author">
+      <div class="avatar avatar-lg">ME</div>
+      <div>
+        <div class="credits-name">Mohamed Mobine El Hajji</div>
+        <div class="credits-role">Projet de Fin d'Études (PFE)</div>
+      </div>
+    </div>
+
+    <ul class="credits-meta">
+      <li><i data-lucide="graduation-cap"></i> ENSA Marrakech</li>
+      <li><i data-lucide="university"></i> Faculté Cadi Ayyad</li>
+      <li><i data-lucide="train-front"></i> ONCF — Atelier EMIZ</li>
+      <li><i data-lucide="calendar"></i> 2026</li>
+    </ul>
+
+    <div class="credits-stack">
+      <span class="tag">FastAPI</span><span class="tag">Jinja2</span>
+      <span class="tag">MongoDB Atlas</span><span class="tag">Glassmorphism UI</span>
+    </div>
+
+    <div class="credits-copy">© Mohamed Mobine El Hajji — 2026</div>
+  </div>
+</div>
+{% endblock %}

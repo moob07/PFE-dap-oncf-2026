@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% from 'partials/macros.html' import kpi_card %}
+{% block title %}Reporting KPI{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb"><i data-lucide="home"></i> Accueil <i data-lucide="chevron-right"></i> Reporting</div>
+    <h1>Tableau de bord KPI</h1>
+    <div class="subtitle">Indicateurs de performance du flux DAP</div>
+  </div>
+  <div class="page-actions">
+    <select id="period" class="btn-ghost" style="height:38px">
+      <option value="7">7 jours</option><option value="30" selected>30 jours</option>
+      <option value="90">90 jours</option><option value="365">12 mois</option>
+    </select>
+  </div>
+</div>
+
+<div class="kpi-grid">
+  {{ kpi_card("Lead Time moyen (min)", kpis.lead_time, "timer", "blue", -8) }}
+  {{ kpi_card("DAP approuvées < 4h", kpis.appro_4h, "gauge", "green", 5, suffix="%") }}
+  {{ kpi_card("Taux de rupture", kpis.rupture, "alert-triangle", "amber", -2, suffix="%") }}
+  {{ kpi_card("DAP créées", kpis.creees, "file-plus", "indigo") }}
+  {{ kpi_card("DAP livrées", kpis.livrees, "package-check", "green", 11) }}
+  {{ kpi_card("Réclamations ouvertes", kpis.reclamations, "message-circle-warning", "red") }}
+</div>
+
+<div class="grid grid-2" style="margin-bottom:18px">
+  <div class="card">
+    <div class="card-head"><h2><i data-lucide="line-chart"></i> Évolution Lead Time</h2></div>
+    <div class="chart-box"><canvas id="chartLead"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-head"><h2><i data-lucide="pie-chart"></i> Répartition par statut</h2></div>
+    <div class="chart-box"><canvas id="chartDonut"></canvas></div>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:18px">
+  <div class="card-head"><h2><i data-lucide="bar-chart-3"></i> Top 10 pièces consommées</h2></div>
+  <div class="chart-box"><canvas id="chartTop"></canvas></div>
+</div>
+
+<div class="card">
+  <div class="card-head"><h2><i data-lucide="trophy"></i> Top 5 demandeurs ce mois</h2></div>
+  {% if top_demandeurs %}
+  <div class="table-wrap" style="border:none">
+    <table class="data">
+      <thead><tr><th>#</th><th>Demandeur</th><th>DAP créées</th></tr></thead>
+      <tbody>
+        {% for d in top_demandeurs %}
+        <tr><td>{{ loop.index }}</td><td>{{ d.nom }}</td><td><strong>{{ d.count }}</strong></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<div class="text-muted">Aucune donnée ce mois.</div>{% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const palette = { "Brouillon":"#94a3b8","En attente d'approbation":"#f59e0b","Approuvée":"#3b82f6",
+    "Rejetée":"#ef4444","En préparation":"#6366f1","Prête à livrer":"#8b5cf6","Livrée":"#10b981",
+    "Clôturée":"#059669","En escalade appro.":"#f97316","Annulée":"#6b7280" };
+  let cLead, cDonut, cTop;
+  async function load() {
+    const r = await fetch("/reporting/data");
+    const d = await r.json();
+    if (cLead) cLead.destroy(); if (cDonut) cDonut.destroy(); if (cTop) cTop.destroy();
+    cLead = new Chart(document.getElementById("chartLead"), {
+      type: "line",
+      data: { labels: d.lead_time_trend.labels, datasets: [{ label: "Lead Time (min)",
+        data: d.lead_time_trend.values, borderColor: "#1E3A5F", backgroundColor: "rgba(30,58,95,.1)",
+        fill: true, tension: .35, pointRadius: 2 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+    cDonut = new Chart(document.getElementById("chartDonut"), {
+      type: "doughnut",
+      data: { labels: d.distribution.map(x => x.label),
+        datasets: [{ data: d.distribution.map(x => x.count), backgroundColor: d.distribution.map(x => palette[x.label] || "#94a3b8") }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "right", labels: { boxWidth: 12, font: { size: 11 } } } } }
+    });
+    cTop = new Chart(document.getElementById("chartTop"), {
+      type: "bar",
+      data: { labels: d.top_pieces.map(x => x.code), datasets: [{ label: "Quantité",
+        data: d.top_pieces.map(x => x.qte), backgroundColor: "#3b5b86", borderRadius: 4 }] },
+      options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+  }
+  load();
+</script>
+{% endblock %}

@@ -1,0 +1,18 @@
+<aside class="sidebar glass" id="sidebar">
+  <nav class="sidebar-nav">
+    {% for item in nav_items %}
+      <a href="{{ item.route }}"
+         class="nav-item {{ 'active' if request.url.path == item.route or (item.route != '/' and request.url.path.startswith(item.route)) }}">
+        <i data-lucide="{{ item.icon }}"></i>
+        <span>{{ item.label }}</span>
+      </a>
+    {% endfor %}
+  </nav>
+  <div class="sidebar-foot">
+    <div class="role-chip">
+      <i data-lucide="shield-check"></i>
+      <span>{{ ROLE_META[user.role].label }}</span>
+    </div>
+  </div>
+</aside>
+<div class="sidebar-backdrop" id="sidebarBackdrop"></div>

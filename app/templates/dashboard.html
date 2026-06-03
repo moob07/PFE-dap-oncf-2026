@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+{% from 'partials/macros.html' import kpi_card, status_badge, priority_badge, empty_state %}
+{% block title %}Tableau de bord{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb"><i data-lucide="home"></i> Accueil</div>
+    <h1>Tableau de bord</h1>
+    <div class="subtitle">Bonjour {{ user.prenom }} · {{ ROLE_META[user.role].label }}</div>
+  </div>
+  <div class="page-actions">
+    {% if role == 'DEMANDEUR' %}<a href="/daps/new" class="btn btn-primary"><i data-lucide="plus"></i> Nouvelle DAP</a>{% endif %}
+  </div>
+</div>
+
+{% if role == 'DEMANDEUR' %}
+  <div class="kpi-grid">
+    {{ kpi_card("Mes DAP actives", kpis.actives, "clipboard-list", "blue", 8) }}
+    {{ kpi_card("En attente d'approbation", kpis.attente, "clock", "amber", -3) }}
+    {{ kpi_card("Livrées ce mois", kpis.livrees_mois, "package-check", "green", 12) }}
+    {{ kpi_card("Délai moyen (min)", kpis.lead_time, "timer", "indigo", -5) }}
+  </div>
+  <div class="card">
+    <div class="card-head"><h2><i data-lucide="history"></i> Mes 5 dernières DAP</h2><a href="/daps" class="btn btn-ghost btn-sm">Tout voir</a></div>
+    {% if recent %}
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>Référence</th><th>Date</th><th>Priorité</th><th>Statut</th><th></th></tr></thead>
+        <tbody>
+          {% for d in recent %}
+          <tr>
+            <td><a class="ref-link" href="/daps/{{ d.id }}">{{ d.reference }}</a></td>
+            <td>{{ d.createdAt|fmt_date }}</td>
+            <td>{{ priority_badge(d.priorite) }}</td>
+            <td>{{ status_badge(d.statut) }}</td>
+            <td><a href="/daps/{{ d.id }}" class="btn btn-ghost btn-sm">Ouvrir</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      {{ empty_state("inbox", "Aucune DAP", "Vous n'avez pas encore créé de demande.", "/daps/new", "Créer ma première DAP") }}
+    {% endif %}
+  </div>
+
+{% elif role == 'CO_PROD' %}
+  <div class="kpi-grid">
+    {{ kpi_card("DAP en attente", kpis.attente, "clock", "amber") }}
+    {{ kpi_card("Approuvées aujourd'hui", kpis.appr_today, "check-circle", "green", 6) }}
+    {{ kpi_card("Appro. < 4h", kpis.delai_appro, "gauge", "blue", suffix="%") }}
+    {{ kpi_card("Mon unité ce mois", kpis.unite_mois, "building-2", "indigo") }}
+  </div>
+  <div class="card">
+    <div class="card-head"><h2><i data-lucide="check-square"></i> À approuver</h2><a href="/approbation" class="btn btn-primary btn-sm">File d'approbation</a></div>
+    {% if a_approuver %}
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Référence</th><th>Demandeur</th><th>Priorité</th><th>Date besoin</th><th></th></tr></thead>
+      <tbody>
+        {% for d in a_approuver %}
+        <tr>
+          <td><a class="ref-link" href="/daps/{{ d.id }}">{{ d.reference }}</a></td>
+          <td>{{ d.demandeurNom }}</td>
+          <td>{{ priority_badge(d.priorite) }}</td>
+          <td>{{ d.dateBesoin|fmt_date }}</td>
+          <td><a href="/daps/{{ d.id }}" class="btn btn-ghost btn-sm">Examiner</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}{{ empty_state("check-circle", "File vide", "Aucune DAP en attente d'approbation.") }}{% endif %}
+  </div>
+
+{% elif role == 'GEST_STOCK' %}
+  <div class="kpi-grid">
+    {{ kpi_card("À préparer", kpis.a_preparer, "inbox", "blue") }}
+    {{ kpi_card("En préparation", kpis.en_prepa, "loader", "indigo") }}
+    {{ kpi_card("Livrées aujourd'hui", kpis.livrees_today, "truck", "green", 4) }}
+    {{ kpi_card("Ruptures actives", kpis.ruptures, "alert-triangle", "red") }}
+  </div>
+  <div class="card">
+    <div class="card-head"><h2><i data-lucide="kanban"></i> Aperçu Kanban</h2><a href="/stock/kanban" class="btn btn-primary btn-sm">Kanban complet</a></div>
+    <div class="grid grid-3">
+      {% for statut, ds in kanban.items() %}
+      <div class="kanban-col">
+        <div class="kanban-col-head">{{ STATUS_META[statut].label }}<span class="kanban-count">{{ ds|length }}</span></div>
+        <div class="kanban-cards">
+          {% for d in ds %}
+          <a href="/daps/{{ d.id }}" class="kanban-card" style="cursor:pointer">
+            <div class="kc-head"><span class="kc-ref">{{ d.reference }}</span>{{ priority_badge(d.priorite) }}</div>
+            <div class="kc-meta"><span>{{ d.demandeurNom }}</span><span>Besoin : {{ d.dateBesoin|fmt_date }}</span></div>
+          </a>
+          {% else %}<div class="text-muted" style="font-size:12px;padding:8px">Vide</div>{% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+{% elif role == 'RESP_APPRO' %}
+  <div class="kpi-grid">
+    {{ kpi_card("Escalades ouvertes", kpis.ouvertes, "alert-triangle", "red") }}
+    {{ kpi_card("Traitées ce mois", kpis.traitees_mois, "check-circle", "green", 9) }}
+  </div>
+  <div class="card">
+    <div class="card-head"><h2><i data-lucide="alert-triangle"></i> Escalades à traiter</h2><a href="/escalades" class="btn btn-primary btn-sm">Toutes les escalades</a></div>
+    {% if escalades %}
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Référence</th><th>Demandeur</th><th>Unité</th><th>Motif rupture</th><th>Priorité</th><th></th></tr></thead>
+      <tbody>
+        {% for d in escalades %}
+        <tr class="row-danger">
+          <td><a class="ref-link" href="/daps/{{ d.id }}">{{ d.reference }}</a></td>
+          <td>{{ d.demandeurNom }}</td><td>{{ d.uniteLibelle }}</td>
+          <td>{{ d.motifRupture }}</td><td>{{ priority_badge(d.priorite) }}</td>
+          <td><a href="/escalades/{{ d.id }}" class="btn btn-warning btn-sm">Traiter</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}{{ empty_state("shield-check", "Aucune escalade", "Aucune rupture en cours.") }}{% endif %}
+  </div>
+
+{% elif role == 'ADMIN' %}
+  <div class="kpi-grid">
+    {{ kpi_card("Total DAP", kpis.total_daps, "clipboard-list", "blue") }}
+    {{ kpi_card("Utilisateurs actifs", kpis.users_actifs, "users", "green") }}
+    {{ kpi_card("Pièces référencées", kpis.pieces, "package", "indigo") }}
+    {{ kpi_card("Pièces sous seuil", kpis.ruptures, "alert-triangle", "amber") }}
+  </div>
+  <div class="grid grid-2">
+    <div class="card">
+      <div class="card-head"><h2><i data-lucide="trending-up"></i> Évolution DAP (30 j)</h2></div>
+      <div class="chart-box"><canvas id="chartEvolution"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2><i data-lucide="pie-chart"></i> Répartition par statut</h2></div>
+      <div class="chart-box"><canvas id="chartDistribution"></canvas></div>
+    </div>
+  </div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if role == 'ADMIN' %}
+<script>
+  const evo = {{ chart|tojson }};
+  new Chart(document.getElementById("chartEvolution"), {
+    type: "bar",
+    data: { labels: evo.labels, datasets: [{ label: "DAP créées", data: evo.counts,
+      backgroundColor: "#3b5b86", borderRadius: 4 }] },
+    options: { plugins: { legend: { display: false } }, responsive: true, maintainAspectRatio: false,
+      scales: { x: { ticks: { maxTicksLimit: 10 } } } }
+  });
+  const dist = {{ distribution|tojson }};
+  const palette = { "Brouillon":"#94a3b8","En attente d'approbation":"#f59e0b","Approuvée":"#3b82f6",
+    "Rejetée":"#ef4444","En préparation":"#6366f1","Prête à livrer":"#8b5cf6","Livrée":"#10b981",
+    "Clôturée":"#059669","En escalade appro.":"#f97316","Annulée":"#6b7280" };
+  new Chart(document.getElementById("chartDistribution"), {
+    type: "doughnut",
+    data: { labels: dist.map(d => d.label),
+      datasets: [{ data: dist.map(d => d.count), backgroundColor: dist.map(d => palette[d.label] || "#94a3b8") }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "right", labels: { boxWidth: 12, font: { size: 11 } } } } }
+  });
+</script>
+{% endif %}
+{% endblock %}
