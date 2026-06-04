@@ -1,97 +1,156 @@
-# Plateforme DAP — Demande d'Approvisionnement de Pièces
+# Plateforme DAP ONCF - Rapport Technique et Fonctionnel Complet
 
-Application web de gestion du flux d'approvisionnement en pièces de rechange de
-l'**Atelier EMIZ / ONCF**. Elle dématérialise le cycle complet d'une DAP, de la
-demande du technicien jusqu'à la livraison signée et la clôture, avec
-traçabilité intégrale, tableau de bord KPI et gestion d'escalade en cas de
-rupture de stock.
+Application web de digitalisation du cycle de Demande d'Approvisionnement de
+Pieces (DAP) pour l'atelier EMIZ / ONCF. La solution couvre la chaine metier
+de bout en bout, de la creation de la demande jusqu'a la cloture apres
+livraison signee, avec controle de role, auditabilite, notifications et
+reporting KPI.
 
-> Projet de Fin d'Études (PFE) — **Mohamed Mobine El Hajji**
-> ENSA Marrakech · Faculté Cadi Ayyad · 2026
-
----
-
-## Stack technique
-
-| Couche | Technologie |
-|--------|-------------|
-| Backend | **FastAPI** (Python 3.11+) |
-| Templating | **Jinja2** (rendu côté serveur) |
-| Frontend | **HTML / CSS / JavaScript vanilla** — design *morpholiquide glass* (glassmorphism), responsive |
-| Base de données | **MongoDB Atlas** (cloud) via `pymongo` |
-| Auth | Sessions signées (cookie) + mots de passe hachés **PBKDF2-HMAC-SHA256** |
-| Graphiques | Chart.js (CDN) · Icônes Lucide (CDN) |
-
-Aucun build front n'est nécessaire : les pages sont rendues par le serveur.
+> Projet de Fin d'Etudes (PFE) - Mohamed Mobine El Hajji  
+> ENSA Marrakech - Faculte Cadi Ayyad - 2026
 
 ---
 
-## Prérequis
+## 1. Resume executif
 
-- Python **3.11 ou supérieur**
-- Un cluster **MongoDB Atlas** accessible (chaîne de connexion `mongodb+srv://…`)
+La plateforme DAP repond a un besoin metier central dans les ateliers
+ferroviaires:
+
+- Reduire les delais de traitement d'une demande de piece.
+- Eliminer les pertes d'information liees au papier et aux echanges informels.
+- Standardiser les validations inter-services (atelier, co-production,
+  magasin, approvisionnement).
+- Assurer une tracabilite fiable pour les decisions, livraisons et escalades.
+- Produire des indicateurs de performance exploitables par le management.
+
+L'application est concue en rendu serveur (FastAPI + Jinja2), sans chaine de
+build front, avec MongoDB Atlas comme persistance cloud. Cette architecture
+facilite l'exploitation, reduit la complexite DevOps et convient a un
+deploiement gratuit (Render/Railway/Vercel).
 
 ---
 
-## Installation
+## 2. Contexte ONCF et problematique terrain
 
-```bash
-# 1. Dépendances
-pip install -r requirements.txt
+Dans un environnement de maintenance ferroviaire, les pieces de rechange sont
+critiques pour la continuite de service. Les difficultes frequemment
+rencontrees sont:
+
+- Demandes incompletes ou non standardisees.
+- Retards de validation faute de visibilite partagee.
+- Ruptures de stock detectees tardivement.
+- Faible visibilite sur les responsabilites et les SLA.
+- Difficulte a produire des KPI fiables pour l'encadrement.
+
+La plateforme DAP propose un modele cible "workflow pilote par etats" aligne sur
+l'organisation metier ONCF cote atelier, magasin et approvisionnement.
+
+---
+
+## 3. Objectifs de conception
+
+### 3.1 Objectifs fonctionnels
+
+- Dematerialiser entierement le cycle DAP.
+- Imposer des regles de validation par role.
+- Traiter les cas nominaux et exceptions (rupture de stock).
+- Fournir une vision temps reel par role.
+
+### 3.2 Objectifs non fonctionnels
+
+- Simplicite d'exploitation (stack legere, SSR, pas de build front).
+- Securite minimale solide (sessions signees, mots de passe hashes PBKDF2).
+- Portabilite cloud gratuite.
+- Observabilite applicative (logs de demarrage, endpoint health, audit).
+
+---
+
+## 4. Stack et choix technologiques
+
+| Couche | Technologie | Raison du choix |
+|--------|-------------|-----------------|
+| Backend | FastAPI (Python 3.11+) | Rapidite de developpement, routes explicites, integration facile avec templates |
+| Rendu | Jinja2 (server-side) | Simplicite, SEO naturel, cout JS reduit |
+| Front | HTML/CSS/JS vanilla | Maitrise fine, zero build, charge faible |
+| Donnees | MongoDB Atlas + pymongo | Schema souple, cloud pret a l'emploi |
+| Auth | Session cookie signee + PBKDF2-HMAC-SHA256 | Securite correcte sans dependances natives lourdes |
+| Visualisation | Chart.js + Lucide (CDN) | KPI et lisibilite UI |
+
+---
+
+## 5. Architecture logique de la solution
+
+### 5.1 Vue d'ensemble
+
+```mermaid
+flowchart LR
+    U[Utilisateurs Metier] --> W[UI SSR Jinja2]
+    W --> A[FastAPI Routeurs]
+    A --> S[Services Metier]
+    S --> D[(MongoDB Atlas)]
+    S --> N[Notifications]
+    S --> J[Journal d'audit]
+    A --> R[Reporting KPI]
+    R --> D
 ```
 
-### Configuration
+### 5.2 Decoupage en couches
 
-Créez un fichier `.env` à la racine (déjà présent en local, **non versionné**) :
+- Couche presentation: templates + assets statiques.
+- Couche routage: orchestration des ecrans et endpoints JSON.
+- Couche metier: workflow, transitions, notifications, audit, enrichissement.
+- Couche donnees: acces Mongo, compteurs auto-increment, seed de demonstration.
 
-```ini
-MONGO_URI=mongodb+srv://<user>:<password>@<cluster>/?appName=Cluster0
-DB_NAME=dap_emiz
-SECRET_KEY=une-chaine-secrete-aleatoire
-DEMO_PASSWORD=demo1234
+---
+
+## 6. Conception metier: roles, responsabilites et gouvernance
+
+### 6.1 Roles implementes
+
+| Role | Code | Responsabilite principale |
+|------|------|---------------------------|
+| Demandeur | DEMANDEUR | Saisie DAP, soumission, reception finale |
+| Coordinateur Production | CO_PROD | Approbation, rejet, demande de complement |
+| Gestionnaire de Stock | GEST_STOCK | Preparation, pret livraison, livraison, signalement rupture |
+| Responsable Approvisionnement | RESP_APPRO | Traitement escalades rupture et retour en preparation |
+| Administrateur | ADMIN | Referentiels, utilisateurs, audit, pilotage global |
+
+### 6.2 Principe de gouvernance
+
+- Toute action est conditionnee par un couple (role, statut source).
+- Toute transition valide genere automatiquement:
+  - une mise a jour de statut,
+  - une ligne d'historique sur la DAP,
+  - une entree d'audit,
+  - des notifications contextuelles.
+- Les acces ecrans sont filtres en navigation et renforces cote serveur (RBAC).
+
+---
+
+## 7. Workflow ONCF digitalise
+
+### 7.1 Processus cible dans l'atelier
+
+```mermaid
+flowchart TD
+    A[Demandeur cree DAP] --> B[Soumission]
+    B --> C{Co-Prod}
+    C -->|Approuve| D[Magasin: preparation]
+    C -->|Rejette| R[Rejet + motif]
+    C -->|Demande complement| A
+    D --> E{Stock disponible?}
+    E -->|Oui| F[Prete a livrer]
+    E -->|Non| G[Escalade approvisionnement]
+    G --> H[Resp. Appro: appro recu]
+    H --> D
+    F --> I[Livraison + signature]
+    I --> J[Demandeur accuse reception]
+    J --> K[DAP cloturee]
 ```
 
-> ⚠️ **Sécurité** — Le fichier `.env` contient des identifiants et est ignoré par
-> Git (`.gitignore`). Ne le committez jamais. Si une chaîne de connexion a déjà
-> été partagée en clair, **changez le mot de passe du compte MongoDB** depuis la
-> console Atlas.
-
 ---
 
-## Lancement
-
-```bash
-# 2. Peupler la base avec les données de démonstration (idempotent)
-python -m app.seed
-
-# 3. Démarrer le serveur
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
-```
-
-L'application est alors disponible sur **http://127.0.0.1:8000**.
-
----
-
-## Comptes de démonstration
-
-Le seed crée **20 utilisateurs** répartis sur les 5 rôles. Le mot de passe est
-commun à tous : **`demo1234`** (valeur `DEMO_PASSWORD`).
-
-La page de connexion propose des **boutons de connexion rapide** (un compte actif
-par rôle). Une fois connecté, le **sélecteur de rôle** (en haut à droite) permet
-de basculer instantanément vers un autre rôle pour explorer toute la chaîne.
-
-| Rôle | Responsabilité dans le flux |
-|------|------------------------------|
-| **Demandeur** | Crée et soumet les DAP, accuse réception |
-| **Co-Prod** | Approuve / rejette / demande complément |
-| **Gestionnaire de stock** | Prépare, marque prête, livre (signature), signale rupture |
-| **Resp. Approvisionnement** | Traite les escalades de rupture |
-| **Admin** | Référentiels pièces & utilisateurs, journal d'audit |
-
----
-
-## Flux métier (machine à états)
+### Flux métier (machine à états)
 
 ```
 BROUILLON ──soumettre──▶ EN_ATTENTE_APPRO ──approuver──▶ APPROUVEE
@@ -115,156 +174,376 @@ livraison — **décrémente le stock** des pièces livrées.
 
 ---
 
-## Fonctionnalités
 
-- **17 écrans** : connexion, tableau de bord par rôle, liste/création/édition/détail
-  des DAP, file d'approbation, kanban de préparation, écran de livraison avec
-  signature, escalades, référentiels pièces & utilisateurs, journal d'audit,
-  reporting KPI, notifications, profil, crédits, pages d'erreur 403/404.
-- **RBAC** : navigation filtrée par rôle + contrôle d'accès serveur (403).
-- **Tableau de bord KPI** : lead time, taux d'approbation < 4 h, taux de rupture,
-  répartition par statut, top pièces, top demandeurs (Chart.js).
-- **Recherche globale** instantanée (DAP, pièces, utilisateurs).
-- **Traçabilité 100 %** : historique de chaque DAP + journal d'audit horodaté.
-- **Données de démo riches** : 5 unités, 20 utilisateurs, 200 pièces, 50 DAP
-  réparties sur tous les statuts, 30 notifications, journal d'audit.
+### 7.2 Vision operationnelle ONCF
+
+Le workflow modelise une separation claire des responsabilites inter-services:
+
+- Atelier: expression du besoin et validation de reception.
+- Coordination production: priorisation et controle de conformite metier.
+- Magasin: execution logistique de la preparation/livraison.
+- Approvisionnement: resolution des indisponibilites (escalade).
+- Administration: maintien des referentiels et audit transverse.
+
+Cette structuration reduit les ambiguites de responsabilite et ameliore la
+tracabilite decisionnelle.
+
+### 7.3 Statuts et transitions implementes
+
+- Statuts: BROUILLON, EN_ATTENTE_APPRO, APPROUVEE, REJETEE, EN_PREPARATION,
+  PRETE_A_LIVRER, LIVREE, CLOTUREE, EN_ESCALADE_APPRO, ANNULEE.
+- Actions: soumettre, annuler, approuver, rejeter, demander_complement,
+  demarrer_preparation, marquer_pret, signaler_rupture, livrer,
+  accuser_reception, appro_recu.
 
 ---
 
-## Structure du projet
+## 8. Mecanique interne des transitions
 
-```
+La fonction centrale de workflow est l'equivalent d'un moteur de machine a
+etats. Pour chaque action:
+
+1. Verification de l'existence de l'action.
+2. Verification du role acteur.
+3. Verification du statut source.
+4. Validation de champs obligatoires (motif rejet, motif rupture, message).
+5. Mise a jour des horodatages metier:
+   - soumiseAt,
+   - approuveeAt,
+   - livreeAt,
+   - clotureeAt.
+6. Mise a jour de l'historique embarque dans la DAP.
+7. Ecriture en base.
+8. Ajustement du stock a la livraison (decrement sur quantites livrees).
+9. Ecriture audit.
+10. Emission de notifications ciblees.
+
+Cette approche garantit l'atomicite logique du passage d'etat.
+
+---
+
+## 9. Modele de donnees (MongoDB)
+
+### 9.1 Collections principales
+
+- unites
+- users
+- pieces
+- daps
+- notifications
+- audit
+- counters
+
+### 9.2 Structure fonctionnelle simplifiee
+
+| Collection | Champs cles |
+|------------|-------------|
+| unites | id, code, libelle |
+| users | id, nom, prenom, email, role, uniteId, actif, password, telephone, prefs |
+| pieces | id, code, designation, famille, fournisseur, stockActuel, seuilMini, actif |
+| daps | id, reference, demandeurId, uniteId, priorite, statut, lignes, history, timestamps |
+| notifications | id, userId, type, titre, contenu, dapIdRef, lu, createdAt |
+| audit | id, userId, action, entite, entiteId, payload, createdAt |
+| counters | _id, seq |
+
+### 9.3 Conception des identifiants
+
+- Les ids metier sont des entiers sequentiels (compteurs) pour simplifier les
+  references inter-collections.
+- La reference DAP suit le format: DAP-YYYY-MM-#####.
+
+### 9.4 Jeu de donnees seed (demo)
+
+- 5 unites.
+- 20 utilisateurs (dont comptes inactifs).
+- 200 pieces (5 familles, niveaux de stock varies).
+- 50 DAP reparties sur tous les statuts.
+- 30 notifications.
+- 80 evenements d'audit.
+
+Le seed est idempotent: purge puis reconstruction coherente des collections.
+
+---
+
+## 10. Securite et controle d'acces
+
+### 10.1 Authentification
+
+- Session basee sur cookie signe (SessionMiddleware).
+- Mot de passe hashe PBKDF2-HMAC-SHA256 (120000 iterations).
+- Verification constante-time via hmac.compare_digest.
+
+### 10.2 Autorisation
+
+- Controle d'acces par dependances serveur (require_user, require_roles).
+- Filtrage complementaire de la navigation par role.
+- Retour 403 sur acces non autorise.
+
+### 10.3 Mesures de prudence
+
+- Secrets uniquement via variables d'environnement.
+- .env non versionne.
+- Rotation recommandee immediate si fuite de credentials Atlas.
+
+---
+
+## 11. Ecrans et parcours utilisateur
+
+### 11.1 Inventaire des ecrans metier
+
+- Auth: connexion, deconnexion, changement de role demo.
+- Dashboard: vue contextualisee par role.
+- DAP: liste, creation, edition brouillon, detail, actions.
+- Approbation: file Co-Prod + approbation en masse.
+- Stock: kanban, deplacement d'etat, ecran de livraison (signature + quantites).
+- Escalades: liste + detail + resolution.
+- Reporting: KPI + endpoint JSON pour graphiques.
+- Admin: referentiel pieces, referentiel utilisateurs, audit.
+- Divers: notifications, profil, credits, erreurs 403/404.
+
+### 11.2 Recherche globale
+
+Endpoint /search (JSON) avec autocompletion sur:
+
+- DAP (reference, OT, justification).
+- Pieces (code, designation).
+- Utilisateurs (visible pour ADMIN).
+
+---
+
+## 12. KPI et logique analytique
+
+### 12.1 KPI principaux
+
+- Lead time moyen (creation -> livraison).
+- Taux d'approbation en moins de 4h.
+- Taux de rupture (DAP en escalade).
+- Distribution des statuts.
+- Top pieces demandees.
+- Top demandeurs mensuels.
+
+### 12.2 Formules
+
+- Lead time moyen = moyenne(minutes(createdAt, livreeAt)).
+- Taux appro < 4h = (nb DAP approuvees en <= 240 min / nb DAP traitees) x 100.
+- Taux rupture = (nb DAP EN_ESCALADE_APPRO / nb DAP total) x 100.
+
+### 12.3 Scoping par role
+
+- Demandeur: ses DAP uniquement.
+- Co-Prod: DAP de son unite.
+- Autres roles: perimetre global.
+
+---
+
+## 13. Structure du code
+
+```text
 app/
-├── main.py            # App FastAPI, middleware session, routeurs, handlers d'erreur
-├── config.py          # Chargement .env (URI Mongo, secret, logo ONCF)
-├── database.py        # Connexion pymongo, compteurs auto-incrément
-├── security.py        # Hachage PBKDF2 + vérification
-├── domain.py          # Constantes métier : rôles, statuts, transitions, navigation
-├── auth.py            # Sessions + dépendances RBAC (require_user / require_roles)
-├── services.py        # Moteur de workflow (apply_transition), enrichissement, audit
-├── stats.py           # Calculs KPI / reporting
-├── seed.py            # Génération des données de démonstration (idempotent)
-├── templating.py      # Jinja2 : filtres, globals, helper render()
-├── routers/           # auth, dashboard, daps, approbation, stock, escalades,
-│                      #   reporting, admin, misc
-├── templates/         # Vues Jinja2 (+ partials, macros, errors)
-└── static/            # css/styles.css (glassmorphism) · js/app.js
+├── main.py            # Assemblage FastAPI, middleware, handlers erreurs, health
+├── config.py          # Chargement environnement
+├── database.py        # Client Mongo, get_db, compteurs, clean
+├── security.py        # Hash/verify PBKDF2
+├── domain.py          # Roles, statuts, transitions, navigation
+├── auth.py            # Session auth + dependances RBAC
+├── services.py        # Workflow, audit, notifications, enrichissements
+├── stats.py           # Calculs KPI
+├── seed.py            # Donnees de demonstration
+├── templating.py      # Jinja2 globals/filters/render
+├── routers/
+│   ├── auth.py        # Login/logout/switch-role
+│   ├── dashboard.py   # Accueil par role
+│   ├── daps.py        # CRUD DAP + actions
+│   ├── approbation.py # File Co-Prod
+│   ├── stock.py       # Kanban + livraison
+│   ├── escalades.py   # Escalade appro
+│   ├── reporting.py   # KPI + data JSON
+│   ├── admin.py       # Referentiels + audit
+│   └── misc.py        # notifications, profil, search, credits
+├── templates/         # Vues Jinja2
+└── static/            # CSS/JS
 ```
 
 ---
 
-## Vérification
+## 14. Endpoints cles
 
-Le flux complet a été validé de bout en bout sur MongoDB Atlas :
-création → soumission → approbation → préparation → prête → livraison → clôture,
-avec décrément de stock correct, scénario d'escalade rupture, contrôles RBAC
-(403), pages 404, endpoints JSON reporting/recherche.
+| Domaine | Endpoints principaux |
+|--------|-----------------------|
+| Auth | GET/POST /login, GET /logout, POST /switch-role |
+| DAP | GET /daps, GET/POST /daps/new, GET/POST /daps/{id}/edit, GET /daps/{id}, POST /daps/{id}/action |
+| Approbation | GET /approbation, POST /approbation/bulk |
+| Stock | GET /stock/kanban, POST /stock/move, GET/POST /stock/livraison/{id} |
+| Escalades | GET /escalades, GET /escalades/{id}, POST /escalades/{id} |
+| Reporting | GET /reporting, GET /reporting/data |
+| Admin | /admin/pieces, /admin/users, /admin/audit (+ actions save/toggle) |
+| Utilitaires | /notifications, /profil, /search, /credits, /healthz, /debug |
 
 ---
 
-## Déploiement gratuit
+## 15. Installation, configuration et lancement
 
-L'application est **stateless** (sessions par cookie signé, aucune écriture
-disque) et lit toute sa configuration depuis des variables d'environnement :
-elle se déploie donc sans modification sur la plupart des plateformes.
+### 15.1 Prerequis
 
-### Étapes communes (à faire une seule fois)
+- Python 3.11+
+- Cluster MongoDB Atlas accessible
 
-1. **Pousser le code sur GitHub** (sans le `.env`, déjà ignoré par Git) :
-   ```bash
-   git init && git add . && git commit -m "DAP EMIZ ONCF"
-   git branch -M main
-   git remote add origin https://github.com/<vous>/dap.git
-   git push -u origin main
-   ```
-2. **Ouvrir l'accès réseau MongoDB Atlas** — les hébergeurs gratuits utilisent
-   des IP dynamiques. Dans Atlas → **Network Access → Add IP Address →
-   Allow access from anywhere (`0.0.0.0/0`)**. *(Sans cette étape, l'app
-   déployée ne pourra pas se connecter à la base.)*
-3. La base est déjà peuplée. Sinon, lancez le seed **en local** vers le même
-   cluster : `python -m app.seed`.
+### 15.2 Dependances
 
-> Variables d'environnement à définir sur la plateforme (voir `.env.example`) :
-> `MONGO_URI`, `DB_NAME`, `SECRET_KEY` (générez : `python -c "import secrets;print(secrets.token_hex(32))"`),
-> `DEMO_PASSWORD`.
+```bash
+pip install -r requirements.txt
+```
 
-### Option A — Render (100 % gratuit, recommandé) ⭐
+### 15.3 Variables d'environnement (.env)
 
-Render offre un *Web Service* gratuit (l'app s'endort après 15 min d'inactivité
-puis redémarre en ~30 s). Fichiers déjà fournis : `Procfile`, `runtime.txt`.
+```ini
+MONGO_URI=mongodb+srv://<user>:<password>@<cluster>/?appName=Cluster0
+DB_NAME=dap_emiz
+SECRET_KEY=une-chaine-secrete-aleatoire
+DEMO_PASSWORD=demo1234
+```
 
-1. https://render.com → **New → Web Service** → connectez votre dépôt GitHub.
-2. Environment **Python 3**, Build Command `pip install -r requirements.txt`,
-   Start Command `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
-3. Plan **Free**. Ajoutez les variables d'environnement (Settings → Environment).
-4. **Create Web Service** → l'URL publique est fournie après le build.
+### 15.4 Amorcage des donnees
 
-### Option B — Railway (crédit d'essai gratuit)
+```bash
+python -m app.seed
+```
 
-Railway accorde un crédit d'essai (~5 $) suffisant pour une démo de PFE.
-Fichiers déjà fournis : `Procfile`, `.python-version`.
+### 15.5 Lancement local
 
-1. https://railway.app → **New Project → Deploy from GitHub repo**.
-2. Railway détecte Python et le `Procfile` automatiquement.
-3. Onglet **Variables** → ajoutez les variables d'environnement.
-4. **Settings → Networking → Generate Domain** pour obtenir l'URL publique.
+```bash
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
 
-### Option C — Vercel (Hobby gratuit, serverless)
+URL locale: http://127.0.0.1:8000
 
-> ⚠️ Vercel exécute l'application comme une **fonction serverless** (et non un
-> serveur permanent). Pour une app à rendu serveur, **Render/Railway sont plus
-> simples**. Si vous tenez à Vercel, la configuration ci-dessous est requise.
+---
 
-Fichiers fournis : `vercel.json` + `api/index.py` (adaptateur ASGI). Le point
-clé : `includeFiles: "app/**"` **empaquette les templates HTML et les fichiers
-statiques** dans la fonction — sans cela, Vercel n'embarque que les `.py` et
-l'app renvoie un **500** (`TemplateNotFound` / dossier statique absent).
+## 16. Comptes de demonstration
+
+Le seed cree 20 utilisateurs sur 5 roles. Mot de passe commun: DEMO_PASSWORD
+(par defaut demo1234). La page de connexion expose un compte actif par role et
+un switch-role permet de parcourir rapidement toute la chaine metier.
+
+---
+
+## 17. Validation fonctionnelle du flux
+
+Scenario nominal valide:
+
+1. Creation DAP (demandeur)
+2. Soumission
+3. Approbation Co-Prod
+4. Demarrage preparation magasin
+5. Marquage prete a livrer
+6. Livraison avec signature
+7. Accuse reception demandeur
+8. Cloture
+
+Scenario exceptionnel valide:
+
+1. Preparation
+2. Signalement rupture
+3. Escalade approvisionnement
+4. Appro recu
+5. Retour en preparation
+
+Controles valides:
+
+- RBAC et erreurs 403
+- Gestion 404
+- Decrement de stock a la livraison
+- Notifications et audit generes a chaque transition
+
+---
+
+## 18. Deploiement gratuit
+
+L'application est stateless (session cookie signee, pas d'ecriture disque).
+Elle se deploie sans adaptation majeure.
+
+### 18.1 Etapes communes
+
+1. Pousser le code sur GitHub (sans .env).
+2. Ouvrir l'acces Atlas (Network Access 0.0.0.0/0 sur environnement de demo).
+3. Definir les variables MONGO_URI, DB_NAME, SECRET_KEY, DEMO_PASSWORD.
+
+### 18.2 Option A - Render (recommande)
+
+1. New Web Service depuis le repo.
+2. Build: pip install -r requirements.txt.
+3. Start: uvicorn app.main:app --host 0.0.0.0 --port $PORT.
+4. Plan Free + variables d'environnement.
+
+### 18.3 Option B - Railway
+
+1. Deploy from GitHub.
+2. Detection automatique Procfile.
+3. Configuration variables.
+4. Generate Domain.
+
+### 18.4 Option C - Vercel (serverless)
+
+Fichiers fournis: vercel.json + api/index.py. Le parametre includeFiles: "app/**"
+est indispensable pour embarquer templates et assets statiques.
 
 ```bash
 npm i -g vercel
 vercel login
 vercel --prod
 ```
-Puis **Project → Settings → Environment Variables** : ajoutez `MONGO_URI`,
-`DB_NAME`, `SECRET_KEY`, `DEMO_PASSWORD`, et **redéployez** (`vercel --prod`).
-
-### Diagnostiquer un 500 sur Vercel
-
-La cause exacte est **toujours** dans la trace Python. Pour la lire :
-
-- **Dashboard** → votre projet → l'onglet **Logs** (Runtime Logs) → rechargez la
-  page en erreur → lisez la trace, **ou**
-- **CLI** : `vercel logs <url-du-deploiement>`
-
-L'application journalise au démarrage une ligne `[startup] static_dir=… exists=…
-templates_dir=… exists=… MONGO_URI=set/MISSING`. Interprétation :
-
-| Trace / symptôme dans les logs | Cause | Correctif |
-|--------------------------------|-------|-----------|
-| `exists=False` pour static/templates, `TemplateNotFound` | Fichiers non empaquetés | Vérifier `vercel.json` (`includeFiles`), redéployer |
-| `MONGO_URI=MISSING` | Variable d'env absente | Ajouter les variables puis redéployer |
-| `ServerSelectionTimeoutError` / timeout ~8 s | Atlas bloque l'IP | Atlas → Network Access → `0.0.0.0/0` |
-| `pymongo … Authentication failed` | Mauvais identifiants | Corriger `MONGO_URI` |
-
-> Le **poids** n'est pas en cause : les dépendances font bien moins que la limite
-> de 250 Mo de Vercel. Un 500 immédiat = crash d'exécution, pas un dépassement de
-> taille (qui échouerait, lui, au *build*).
-
-### Sonde de santé
-
-Un endpoint `GET /healthz` renvoie `{"status":"ok"}` (indépendant de la base de
-données) pour vérifier que la fonction démarre, isolément des problèmes Mongo.
 
 ---
 
-## Sécurité (production)
+## 19. Diagnostic et observabilite
 
-- `SECRET_KEY` doit être une valeur **aléatoire et secrète** en production
-  (ne pas réutiliser la valeur de démo).
-- Le `.env` n'est **jamais** committé (présent dans `.gitignore`).
-- Si une chaîne de connexion Atlas a été partagée en clair, **changez le mot de
-  passe** du compte de base de données depuis la console Atlas.
+### 19.1 Endpoint sante
+
+- GET /healthz -> {"status":"ok"}
+
+### 19.2 Endpoint debug (phase mise au point)
+
+- GET /debug verifie: env, chargement templates, static, ping Mongo, comptages.
+
+### 19.3 Cas d'erreur Vercel frequents
+
+| Symptome | Cause probable | Correctif |
+|---------|-----------------|-----------|
+| TemplateNotFound / static absent | includeFiles incomplet | Corriger vercel.json puis redeployer |
+| MONGO_URI manquant | Variables absentes | Ajouter variables et redeployer |
+| ServerSelectionTimeoutError | Atlas bloque la source | Ouvrir Network Access |
+| Authentication failed | URI/identifiants invalides | Corriger MONGO_URI |
 
 ---
 
-© **Mohamed Mobine El Hajji — 2026**
+## 20. Limites actuelles et pistes d'evolution
+
+### 20.1 Limites actuelles
+
+- Auth par session simple (pas de SSO entreprise).
+- Pas de moteur BPM externe (workflow code en dur).
+- Pas de moteur de notifications temps reel (websocket/email reel non active).
+- Couverture tests automatises non formalisee dans ce depot.
+
+### 20.2 Evolutions recommandees
+
+- Integration SSO/LDAP ONCF.
+- SLA metier parametrables par type de piece/priorite.
+- Historisation avancee (analytics temporelles, prediction rupture).
+- Exports decisionnels (CSV/PDF) et tableaux de bord direction.
+- File d'evenements asynchrone pour notifications externes.
+
+---
+
+## 21. Conclusion
+
+La plateforme DAP propose une base robuste, exploitable et extensible pour la
+digitalisation du processus d'approvisionnement de pieces a l'ONCF. Le design
+oriente workflow, combine a la tracabilite native (audit + historique + KPI),
+fournit un cadre solide pour ameliorer la performance operationnelle et la
+gouvernance des flux maintenance.
+
+---
+
+© Mohamed Mobine El Hajji - 2026
+
