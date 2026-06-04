@@ -95,4 +95,8 @@ def base_context(request: Request) -> dict:
 def render(request: Request, template: str, status_code: int = 200, **context):
     ctx = base_context(request)
     ctx.update(context)
-    return templates.TemplateResponse(template, ctx, status_code=status_code)
+    # Signature moderne (request en 1er) — requise par les versions récentes de
+    # Starlette (dont celle vendorisée par Vercel) ; l'ancienne signature
+    # (name, context) y lève « TypeError: unhashable type: 'dict' ».
+    return templates.TemplateResponse(request, template, ctx,
+                                      status_code=status_code)

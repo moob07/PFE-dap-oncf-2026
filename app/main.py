@@ -77,17 +77,75 @@ async def _unhandled(request: Request, exc: Exception):
     réponse générique côté client. C'est ici que la cause d'un 500 apparaît."""
     print(f"[500] {request.method} {request.url.path}", file=sys.stderr)
     traceback.print_exc()
+    # TEMPORAIRE (mise au point) : expose la trace dans la réponse pour
+    # diagnostiquer un 500 sans accès aux Runtime Logs. À RETIRER ensuite
+    # (ne révèle aucun secret, mais expose des chemins de fichiers).
     return JSONResponse(
         {"error": "internal_server_error",
-         "hint": "Consultez les Runtime Logs de la plateforme pour la trace."},
+         "type": type(exc).__name__,
+         "detail": str(exc),
+         "traceback": traceback.format_exc().splitlines()[-25:]},
         status_code=500,
     )
 
 
 @app.get("/healthz", include_in_schema=False)
 def healthz():
-    """Sonde de disponibilité pour les plateformes d'hébergement."""
+    """Sonde de disponibilité (n'accède pas à la base de données)."""
     return {"status": "ok"}
+
+
+@app.get("/debug", include_in_schema=False)
+def debug():
+    """Diagnostic auto-protégé : chaque test est isolé, ne peut pas faire 500.
+    Visitez /debug sur le déploiement pour identifier la cause exacte d'un 500.
+    À RETIRER après mise au point (n'expose aucun secret)."""
+    import os
+    import platform
+
+    report: dict = {"ok": True, "checks": {}}
+
+    def add(name, fn):
+        try:
+            report["checks"][name] = {"ok": True, "value": fn()}
+        except Exception as e:  # noqa: BLE001
+            report["ok"] = False
+            report["checks"][name] = {"ok": False,
+                                      "error": f"{type(e).__name__}: {e}"}
+
+    add("python", lambda: platform.python_version())
+    add("cwd", lambda: os.getcwd())
+    add("static_dir_exists", lambda: STATIC_DIR.is_dir())
+    add("static_sample", lambda: sorted(
+        p.name for p in (STATIC_DIR / "css").glob("*"))[:5])
+    add("templates_dir_exists", lambda: TEMPLATES_DIR.is_dir())
+    add("templates_sample", lambda: sorted(
+        p.name for p in TEMPLATES_DIR.glob("*.html"))[:5])
+    add("env_MONGO_URI", lambda: "set" if config.MONGO_URI else "MISSING")
+    add("env_DB_NAME", lambda: config.DB_NAME or "MISSING")
+    add("env_SECRET_KEY",
+        lambda: "set" if config.SECRET_KEY and config.SECRET_KEY != "dev-secret-key"
+        else "default/MISSING")
+
+    def _ping():
+        from .database import get_client
+        get_client().admin.command("ping")
+        return "connected"
+    add("mongo_ping", _ping)
+
+    def _count():
+        from .database import get_db
+        return {"users": get_db().users.count_documents({}),
+                "daps": get_db().daps.count_documents({})}
+    add("mongo_data", _count)
+
+    def _tmpl():
+        from .templating import templates
+        templates.get_template("login.html")
+        return "login.html loadable"
+    add("template_load", _tmpl)
+
+    return JSONResponse(report, status_code=200 if report["ok"] else 503)
 
 
 if __name__ == "__main__":

@@ -28,8 +28,8 @@ def login_page(request: Request):
                 "label": domain.ROLE_META[role]["label"],
                 "name": f"{u['prenom']} {u['nom']}",
             })
-    return templates.TemplateResponse("login.html", {
-        "request": request, "demo_accounts": demo_accounts,
+    return templates.TemplateResponse(request, "login.html", {
+        "demo_accounts": demo_accounts,
         "demo_password": config.DEMO_PASSWORD,
         "ONCF_LOGO_URL": config.ONCF_LOGO_URL, "error": None,
     })
@@ -40,8 +40,8 @@ def login_submit(request: Request, email: str = Form(...),
                  password: str = Form(...)):
     user = get_db().users.find_one({"email": email.strip().lower()})
     if not user or not user.get("actif") or not verify_password(password, user["password"]):
-        return templates.TemplateResponse("login.html", {
-            "request": request, "demo_accounts": [],
+        return templates.TemplateResponse(request, "login.html", {
+            "demo_accounts": [],
             "demo_password": config.DEMO_PASSWORD,
             "ONCF_LOGO_URL": config.ONCF_LOGO_URL,
             "error": "Identifiants invalides ou compte inactif.",
